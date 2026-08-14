@@ -126,10 +126,10 @@ def build(state, generated):
             <span class="chip {chip}">{esc(badge)}</span>
           </header>
           <ul class="todo">{render_pending(pending)}</ul>
-          <footer>
+          <div class="act">
+            <a class="btn" href="{esc(s.get('url',''))}" target="_blank" rel="noopener">Open &amp; finish</a>
             <span class="ats">{esc(s.get('ats', ''))}</span>
-            {link(s.get('url'), 'Open application')}
-          </footer>
+          </div>
         </article>""")
 
     ref_cards = []
@@ -147,8 +147,11 @@ def build(state, generated):
           </header>
           <p class="contact"><strong>{esc(r.get('name', ''))}</strong>
              <span>{esc(r.get('title', ''))}</span></p>
-          {f'<div class="msg"><pre>{esc(msg)}</pre><button class="copy" data-msg="{esc(msg)}">Copy message</button></div>' if msg else ''}
-          <footer>{link(r.get('profileUrl'), 'Message them')}{link(s.get('url'), 'Open role')}</footer>
+          {f'<div class="msg"><pre>{esc(msg)}</pre></div>' if msg else ''}
+          <div class="act">
+            {f'<button class="btn copy" data-msg="{esc(msg)}">Copy message</button>' if msg else ''}
+            <a class="btn ghost" href="{esc(r.get('profileUrl',''))}" target="_blank" rel="noopener">Message</a>
+          </div>
         </article>""")
 
     sub_rows = "\n".join(
@@ -161,225 +164,223 @@ def build(state, generated):
         f"<li>{esc(c)} &mdash; {esc(r)}</li>" for c, r in sorted(reviewed_only) if c
     )
     unconfirmed_block = f"""
-      <section class="note">
-        <h2>Not confirmed submitted</h2>
+      <div class="note">
+        <h4>Not confirmed submitted</h4>
         <p>These reached final review but no submission was observed. Worth checking before reapplying.</p>
         <ul>{unconfirmed}</ul>
-      </section>""" if unconfirmed else ""
+      </div>""" if unconfirmed else ""
 
     watch_rows = "\n".join(
         f"<tr><td>{esc(s.get('company'))}</td><td>{esc(s.get('role'))}</td>"
         f"<td>{link(s.get('url'))}</td></tr>" for s in watch
     )
-    watch_block = f"""
-      <section>
-        <h2>Watch list</h2>
-        <div class="panel"><div class="tablewrap"><table><thead><tr><th>Company</th><th>Role</th><th></th></tr></thead>
-        <tbody>{watch_rows}</tbody></table></div></div>
-      </section>""" if watch else ""
+
 
     total_todo = sum(len(s.get("pendingFields", [])) for s in blocked)
+
+    tabs = [
+        ("act", "Needs you", len(blocked)),
+        ("ref", "Referrals", len(referrals)),
+        ("done", "Submitted", len(submitted)),
+    ]
+    if watch:
+        tabs.append(("watch", "Watching", len(watch)))
+
+    tabnav = "".join(
+        f'<button class="tab{" on" if i == 0 else ""}" data-tab="{k}" role="tab" '
+        f'aria-selected="{"true" if i == 0 else "false"}" aria-controls="p-{k}">'
+        f'{esc(label)}<span class="n">{n}</span></button>'
+        for i, (k, label, n) in enumerate(tabs)
+    )
 
     return f"""<title>Application Board</title>
 <style>
   :root {{
-    color-scheme: light dark;
-    --bg:#f5f5f7; --card:#ffffff; --card-2:#fbfbfd;
-    --ink:#1d1d1f; --ink-2:#6e6e73; --ink-3:#86868b;
-    --hair:rgba(0,0,0,.08); --hair-2:rgba(0,0,0,.04);
-    --blue:#0071e3; --orange:#c2410c; --green:#047857; --purple:#6d28d9;
-    --tint-o:rgba(234,88,12,.07); --tint-g:rgba(5,150,105,.07); --tint-p:rgba(109,40,217,.06);
-    --shadow:0 1px 2px rgba(0,0,0,.04), 0 4px 16px rgba(0,0,0,.05);
-    --shadow-2:0 1px 2px rgba(0,0,0,.05), 0 8px 28px rgba(0,0,0,.07);
+    color-scheme:light dark;
+    --bg:#f5f5f7; --card:#fff; --sunk:#f0f0f2; --seg:#e8e8ed;
+    --ink:#1d1d1f; --ink-2:#6e6e73; --ink-3:#8e8e93;
+    --hair:rgba(0,0,0,.07);
+    --blue:#0071e3; --orange:#b45309; --green:#047857; --purple:#6d28d9;
+    --t-o:rgba(234,88,12,.08); --t-g:rgba(5,150,105,.08); --t-p:rgba(109,40,217,.07);
+    --sh:0 1px 3px rgba(0,0,0,.05), 0 6px 20px rgba(0,0,0,.05);
   }}
   @media (prefers-color-scheme:dark) {{
     :root:not([data-theme="light"]) {{
-      --bg:#000000; --card:#1c1c1e; --card-2:#161618;
-      --ink:#f5f5f7; --ink-2:#a1a1a6; --ink-3:#8a8a8e;
-      --hair:rgba(255,255,255,.12); --hair-2:rgba(255,255,255,.06);
+      --bg:#000; --card:#1c1c1e; --sunk:#2c2c2e; --seg:#2c2c2e;
+      --ink:#f5f5f7; --ink-2:#aeaeb2; --ink-3:#8e8e93;
+      --hair:rgba(255,255,255,.1);
       --blue:#0a84ff; --orange:#ff9f0a; --green:#30d158; --purple:#bf5af2;
-      --tint-o:rgba(255,159,10,.10); --tint-g:rgba(48,209,88,.09); --tint-p:rgba(191,90,242,.09);
-      --shadow:0 1px 2px rgba(0,0,0,.4); --shadow-2:0 2px 12px rgba(0,0,0,.5);
+      --t-o:rgba(255,159,10,.13); --t-g:rgba(48,209,88,.12); --t-p:rgba(191,90,242,.12);
+      --sh:0 1px 3px rgba(0,0,0,.5);
     }}
   }}
   :root[data-theme="dark"] {{
-    --bg:#000000; --card:#1c1c1e; --card-2:#161618;
-    --ink:#f5f5f7; --ink-2:#a1a1a6; --ink-3:#8a8a8e;
-    --hair:rgba(255,255,255,.12); --hair-2:rgba(255,255,255,.06);
+    --bg:#000; --card:#1c1c1e; --sunk:#2c2c2e; --seg:#2c2c2e;
+    --ink:#f5f5f7; --ink-2:#aeaeb2; --ink-3:#8e8e93;
+    --hair:rgba(255,255,255,.1);
     --blue:#0a84ff; --orange:#ff9f0a; --green:#30d158; --purple:#bf5af2;
-    --tint-o:rgba(255,159,10,.10); --tint-g:rgba(48,209,88,.09); --tint-p:rgba(191,90,242,.09);
-    --shadow:0 1px 2px rgba(0,0,0,.4); --shadow-2:0 2px 12px rgba(0,0,0,.5);
+    --t-o:rgba(255,159,10,.13); --t-g:rgba(48,209,88,.12); --t-p:rgba(191,90,242,.12);
+    --sh:0 1px 3px rgba(0,0,0,.5);
   }}
-
   *,*::before,*::after {{ box-sizing:border-box; }}
-  html {{ -webkit-text-size-adjust:100%; }}
-  body {{
-    margin:0; background:var(--bg); color:var(--ink);
-    font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display",
-      "Helvetica Neue",Inter,system-ui,sans-serif;
-    font-size:17px; line-height:1.47059; letter-spacing:-.022em;
-    -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale;
-  }}
-  .wrap {{ max-width:980px; margin:0 auto; padding:clamp(2.5rem,7vw,5rem) 1.5rem 7rem; }}
+  body {{ margin:0; background:var(--bg); color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",system-ui,sans-serif;
+    font-size:17px; line-height:1.47; letter-spacing:-.022em;
+    -webkit-font-smoothing:antialiased; }}
+  .wrap {{ max-width:860px; margin:0 auto; padding:clamp(2rem,6vw,4rem) 1.25rem 6rem; }}
 
-  .hero {{ margin-bottom:3.5rem; }}
-  h1 {{ font-size:clamp(2.4rem,6vw,3.4rem); font-weight:700; letter-spacing:-.035em;
-    line-height:1.05; margin:0 0 .6rem; text-wrap:balance; }}
-  .lede {{ font-size:1.24rem; color:var(--ink-2); margin:0; letter-spacing:-.019em;
-    line-height:1.38; max-width:34ch; text-wrap:balance; }}
-  .lede b {{ color:var(--ink); font-weight:600; }}
-  .stamp {{ font-size:.82rem; color:var(--ink-3); margin:1.4rem 0 0; letter-spacing:-.01em;
+  .top {{ text-align:center; margin-bottom:2rem; }}
+  h1 {{ font-size:clamp(2rem,5.5vw,2.75rem); font-weight:700; letter-spacing:-.035em;
+    line-height:1.07; margin:0 0 .5rem; }}
+  .lede {{ font-size:1.1rem; color:var(--ink-2); margin:0; letter-spacing:-.018em; }}
+  .stamp {{ font-size:.8rem; color:var(--ink-3); margin:.7rem 0 0;
     font-variant-numeric:tabular-nums; }}
 
-  .tally {{ display:grid; grid-template-columns:repeat(auto-fit,minmax(126px,1fr));
-    gap:.75rem; margin:2.5rem 0 3.75rem; }}
-  .stat {{ background:var(--card); border-radius:18px; padding:1.15rem 1.25rem;
-    box-shadow:var(--shadow); }}
-  .stat b {{ display:block; font-size:2.05rem; font-weight:600; line-height:1;
-    letter-spacing:-.04em; font-variant-numeric:tabular-nums; margin-bottom:.3rem; }}
-  .stat span {{ font-size:.8rem; color:var(--ink-2); letter-spacing:-.01em; }}
-  .stat.lead b {{ color:var(--orange); }}
+  .segwrap {{ display:flex; justify-content:center; margin-bottom:2.25rem;
+    position:sticky; top:.75rem; z-index:5; }}
+  .seg {{ display:inline-flex; background:var(--seg); border-radius:100px; padding:3px;
+    gap:2px; max-width:100%; overflow-x:auto; scrollbar-width:none; }}
+  .seg::-webkit-scrollbar {{ display:none; }}
+  .tab {{ border:none; background:none; color:var(--ink-2); font:inherit; font-size:.93rem;
+    font-weight:510; letter-spacing:-.015em; padding:.5rem 1.05rem; border-radius:100px;
+    cursor:pointer; white-space:nowrap; display:inline-flex; align-items:center; gap:.4rem;
+    transition:background .22s cubic-bezier(.4,0,.2,1), color .22s; }}
+  .tab .n {{ font-size:.78rem; color:var(--ink-3); font-variant-numeric:tabular-nums;
+    background:var(--card); padding:.05rem .38rem; border-radius:100px; min-width:1.35em;
+    text-align:center; }}
+  .tab.on {{ background:var(--card); color:var(--ink); box-shadow:0 1px 3px rgba(0,0,0,.12); }}
+  .tab.on .n {{ background:var(--sunk); color:var(--ink-2); }}
+  .tab:focus-visible {{ outline:3px solid var(--blue); outline-offset:2px; }}
 
-  h2 {{ font-size:1.55rem; font-weight:650; letter-spacing:-.028em; margin:0 0 .35rem; }}
-  .sectionnote {{ color:var(--ink-2); font-size:.98rem; margin:0 0 1.5rem; letter-spacing:-.015em; }}
-  section {{ margin-bottom:4rem; }}
+  .panel {{ display:none; animation:in .3s cubic-bezier(.4,0,.2,1); }}
+  .panel.on {{ display:block; }}
+  @keyframes in {{ from {{ opacity:0; transform:translateY(6px); }} to {{ opacity:1; transform:none; }} }}
+  .hint {{ text-align:center; color:var(--ink-2); font-size:.95rem; margin:0 0 1.75rem;
+    letter-spacing:-.015em; }}
 
-  .grid {{ display:grid; gap:1rem; grid-template-columns:repeat(auto-fill,minmax(320px,1fr)); }}
+  .grid {{ display:grid; gap:.9rem; grid-template-columns:repeat(auto-fill,minmax(330px,1fr)); }}
+  .card {{ background:var(--card); border-radius:20px; padding:1.35rem 1.45rem 1.15rem;
+    box-shadow:var(--sh); display:flex; flex-direction:column; gap:.95rem; }}
+  .card.hold {{ background:linear-gradient(var(--t-o),var(--t-o)),var(--card); }}
+  .card.ready {{ background:linear-gradient(var(--t-g),var(--t-g)),var(--card); }}
+  .card.ref {{ background:linear-gradient(var(--t-p),var(--t-p)),var(--card); }}
+  .card header {{ display:flex; justify-content:space-between; gap:.85rem; align-items:flex-start; }}
+  .card h3 {{ margin:0; font-size:1.1rem; font-weight:620; letter-spacing:-.022em; line-height:1.25; }}
+  .role {{ margin:.2rem 0 0; color:var(--ink-2); font-size:.91rem; letter-spacing:-.014em; }}
+  .chip {{ font-size:.73rem; font-weight:590; padding:.26rem .6rem; border-radius:100px;
+    white-space:nowrap; font-variant-numeric:tabular-nums; }}
+  .chip.hold {{ color:var(--orange); background:var(--t-o); }}
+  .chip.ready {{ color:var(--green); background:var(--t-g); }}
+  .chip.warm {{ color:var(--purple); background:var(--t-p); }}
 
-  .card {{ background:var(--card); border-radius:20px; padding:1.4rem 1.5rem 1.25rem;
-    box-shadow:var(--shadow); display:flex; flex-direction:column; gap:1rem;
-    transition:box-shadow .25s cubic-bezier(.4,0,.2,1), transform .25s cubic-bezier(.4,0,.2,1); }}
-  .card:hover {{ box-shadow:var(--shadow-2); transform:translateY(-1px); }}
-  .card.hold {{ background:linear-gradient(var(--tint-o),var(--tint-o)),var(--card); }}
-  .card.ready {{ background:linear-gradient(var(--tint-g),var(--tint-g)),var(--card); }}
-  .card.ref {{ background:linear-gradient(var(--tint-p),var(--tint-p)),var(--card); }}
-
-  .card header {{ display:flex; justify-content:space-between; gap:.9rem; align-items:flex-start; }}
-  .card h3 {{ margin:0; font-size:1.13rem; font-weight:620; letter-spacing:-.022em; line-height:1.25; }}
-  .role {{ margin:.22rem 0 0; color:var(--ink-2); font-size:.93rem; letter-spacing:-.014em;
-    line-height:1.35; }}
-
-  .chip {{ font-size:.735rem; font-weight:590; padding:.28rem .62rem; border-radius:100px;
-    white-space:nowrap; letter-spacing:-.008em; font-variant-numeric:tabular-nums; }}
-  .chip.hold {{ color:var(--orange); background:var(--tint-o); }}
-  .chip.ready {{ color:var(--green); background:var(--tint-g); }}
-  .chip.warm {{ color:var(--purple); background:var(--tint-p); }}
-
-  ul.todo {{ margin:0; padding:0; list-style:none; display:flex; flex-direction:column; gap:.5rem; }}
-  ul.todo li {{ font-size:.93rem; line-height:1.38; letter-spacing:-.014em;
-    padding-left:1.3rem; position:relative; }}
-  ul.todo li::before {{ content:""; position:absolute; left:.28rem; top:.52em;
-    width:6px; height:6px; border-radius:50%; background:var(--orange); opacity:.85; }}
-  ul.todo li.done {{ padding-left:1.3rem; color:var(--green); font-weight:550; }}
+  ul.todo {{ margin:0; padding:0; list-style:none; display:flex; flex-direction:column; gap:.45rem; }}
+  ul.todo li {{ font-size:.92rem; line-height:1.38; padding-left:1.25rem; position:relative;
+    letter-spacing:-.014em; }}
+  ul.todo li::before {{ content:""; position:absolute; left:.3rem; top:.52em; width:6px;
+    height:6px; border-radius:50%; background:var(--orange); }}
+  ul.todo li.done {{ color:var(--green); font-weight:550; }}
   ul.todo li.done::before {{ content:"\\2713"; background:none; width:auto; height:auto;
-    left:0; top:0; font-size:.95rem; font-weight:700; opacity:1; }}
+    left:0; top:0; font-weight:700; }}
   .why {{ color:var(--ink-2); }}
   .why::before {{ content:" \\2014 "; }}
 
-  .card footer {{ display:flex; justify-content:space-between; align-items:center;
-    gap:.75rem; flex-wrap:wrap; border-top:1px solid var(--hair-2);
-    padding-top:.95rem; margin-top:auto; }}
-  .ats {{ color:var(--ink-3); font-size:.79rem; letter-spacing:-.008em; }}
-
-  a.go {{ color:var(--blue); font-weight:520; text-decoration:none; font-size:.93rem;
-    letter-spacing:-.016em; border-radius:8px; padding:.2rem .1rem; }}
-  a.go:hover {{ text-decoration:underline; text-underline-offset:2px; }}
-  a.go:focus-visible, button:focus-visible {{ outline:3px solid var(--blue);
-    outline-offset:3px; border-radius:8px; }}
-
-  .contact {{ margin:0; font-size:.95rem; letter-spacing:-.015em; line-height:1.4; }}
-  .contact strong {{ font-weight:600; }}
-  .contact span {{ display:block; color:var(--ink-2); font-size:.88rem; margin-top:.1rem; }}
-  .msg {{ display:flex; flex-direction:column; gap:.8rem; align-items:flex-start; }}
-  .msg pre {{ background:var(--card-2); border-radius:12px; padding:.9rem 1rem;
-    font-family:inherit; font-size:.875rem; line-height:1.5; letter-spacing:-.012em;
-    white-space:pre-wrap; margin:0; max-height:142px; overflow:auto; width:100%;
-    color:var(--ink-2); box-shadow:inset 0 0 0 1px var(--hair-2); }}
-  button.copy {{ background:var(--blue); border:none; color:#fff; border-radius:100px;
-    padding:.5rem 1.1rem; font:inherit; font-size:.875rem; font-weight:520;
-    letter-spacing:-.014em; cursor:pointer;
+  .act {{ display:flex; gap:.55rem; flex-wrap:wrap; align-items:center; margin-top:auto;
+    padding-top:.95rem; border-top:1px solid var(--hair); }}
+  .btn {{ display:inline-block; background:var(--blue); color:#fff; text-decoration:none;
+    border:none; font:inherit; font-size:.9rem; font-weight:520; letter-spacing:-.014em;
+    padding:.52rem 1.15rem; border-radius:100px; cursor:pointer;
     transition:opacity .2s, transform .12s; }}
-  button.copy:hover {{ opacity:.86; }}
-  button.copy:active {{ transform:scale(.97); }}
-  button.copy[data-done] {{ background:var(--green); }}
+  .btn:hover {{ opacity:.86; }}
+  .btn:active {{ transform:scale(.97); }}
+  .btn.ghost {{ background:var(--sunk); color:var(--ink); }}
+  .btn[data-done] {{ background:var(--green); }}
+  .btn:focus-visible {{ outline:3px solid var(--blue); outline-offset:3px; }}
+  .ats {{ color:var(--ink-3); font-size:.78rem; margin-left:auto; }}
 
-  .panel {{ background:var(--card); border-radius:20px; box-shadow:var(--shadow);
-    overflow:hidden; }}
+  .contact {{ margin:0; font-size:.93rem; line-height:1.4; letter-spacing:-.015em; }}
+  .contact strong {{ font-weight:600; }}
+  .contact span {{ display:block; color:var(--ink-2); font-size:.86rem; margin-top:.1rem; }}
+  .msg pre {{ background:var(--bg); border-radius:12px; padding:.85rem .95rem;
+    font-family:inherit; font-size:.86rem; line-height:1.5; white-space:pre-wrap; margin:0;
+    max-height:140px; overflow:auto; color:var(--ink-2); letter-spacing:-.012em; }}
+
+  .sheet {{ background:var(--card); border-radius:20px; box-shadow:var(--sh); overflow:hidden; }}
   .tablewrap {{ overflow-x:auto; }}
-  table {{ width:100%; border-collapse:collapse; font-size:.95rem; letter-spacing:-.015em; }}
-  th {{ text-align:left; font-size:.79rem; color:var(--ink-3); font-weight:510;
-    padding:.95rem 1.5rem; border-bottom:1px solid var(--hair); white-space:nowrap;
-    letter-spacing:-.008em; }}
-  td {{ padding:.92rem 1.5rem; border-bottom:1px solid var(--hair-2); }}
+  table {{ width:100%; border-collapse:collapse; font-size:.93rem; letter-spacing:-.015em; }}
+  th {{ text-align:left; font-size:.78rem; color:var(--ink-3); font-weight:510;
+    padding:.9rem 1.4rem; border-bottom:1px solid var(--hair); white-space:nowrap; }}
+  td {{ padding:.88rem 1.4rem; border-bottom:1px solid var(--hair); }}
   tr:last-child td {{ border-bottom:none; }}
   td.when {{ color:var(--ink-3); font-variant-numeric:tabular-nums; white-space:nowrap; }}
+  a.go {{ color:var(--blue); text-decoration:none; font-weight:510; }}
+  a.go:hover {{ text-decoration:underline; }}
 
-  .note {{ background:linear-gradient(var(--tint-o),var(--tint-o)),var(--card);
-    border-radius:20px; padding:1.5rem 1.6rem; box-shadow:var(--shadow); }}
-  .note h2 {{ font-size:1.2rem; margin-bottom:.35rem; }}
-  .note p {{ margin:0 0 .9rem; font-size:.95rem; color:var(--ink-2); letter-spacing:-.015em; }}
-  .note ul {{ margin:0; padding:0; list-style:none; display:flex; flex-direction:column; gap:.4rem; }}
-  .note li {{ font-size:.95rem; letter-spacing:-.015em; }}
-
-  .empty {{ color:var(--ink-2); font-size:1.05rem; padding:3rem 1.5rem; text-align:center;
-    background:var(--card); border-radius:20px; box-shadow:var(--shadow); letter-spacing:-.018em; }}
+  .note {{ background:linear-gradient(var(--t-o),var(--t-o)),var(--card); border-radius:20px;
+    padding:1.3rem 1.45rem; box-shadow:var(--sh); margin-top:1.5rem; }}
+  .note h4 {{ margin:0 0 .3rem; font-size:1rem; font-weight:620; letter-spacing:-.02em; }}
+  .note p {{ margin:0 0 .7rem; font-size:.9rem; color:var(--ink-2); }}
+  .note ul {{ margin:0; padding:0; list-style:none; display:flex; flex-direction:column; gap:.3rem;
+    font-size:.9rem; }}
+  .empty {{ text-align:center; color:var(--ink-2); font-size:1.05rem; padding:3.5rem 1.5rem;
+    background:var(--card); border-radius:20px; box-shadow:var(--sh); letter-spacing:-.018em; }}
   .muted {{ color:var(--ink-3); }}
   @media (prefers-reduced-motion:reduce) {{ *,*::before,*::after {{
     transition:none !important; animation:none !important; }} }}
-  @media (max-width:600px) {{
-    body {{ font-size:16px; }}
-    .grid {{ grid-template-columns:1fr; }}
-    th, td {{ padding-left:1.15rem; padding-right:1.15rem; }}
-  }}
+  @media (max-width:600px) {{ .grid {{ grid-template-columns:1fr; }}
+    th,td {{ padding-left:1.1rem; padding-right:1.1rem; }} }}
 </style>
 
 <div class="wrap">
-  <header class="hero">
+  <div class="top">
     <h1>Application board</h1>
-    <p class="lede"><b>{len(blocked)} application{'' if len(blocked)==1 else 's'}</b> {'is' if len(blocked)==1 else 'are'} waiting on you.
-       {f'{len(referrals)} referral{"" if len(referrals)==1 else "s"} ready to send.' if referrals else ''}</p>
-    <p class="stamp">{esc(name)} &middot; updated {esc(generated)}</p>
-  </header>
-
-  <div class="tally">
-    <div class="stat lead"><b>{len(blocked)}</b><span>Need you</span></div>
-    <div class="stat"><b>{total_todo}</b><span>Open items</span></div>
-    <div class="stat"><b>{len(referrals)}</b><span>Referrals</span></div>
-    <div class="stat"><b>{len(submitted)}</b><span>Submitted</span></div>
+    <p class="lede">{f"{len(blocked)} waiting on you" if blocked else "Nothing blocked"}{f" &middot; {len(referrals)} referral{'' if len(referrals)==1 else 's'} ready" if referrals else ""}</p>
+    <p class="stamp">{esc(name)} &middot; {esc(generated)}</p>
   </div>
 
-  <section>
-    <h2>Needs you</h2>
-    <p class="sectionnote">Each one opens straight to the page where it is blocked.</p>
-    {f'<div class="grid">{"".join(cards)}</div>' if cards
-     else '<p class="empty">Nothing is blocked right now.</p>'}
-  </section>
+  <div class="segwrap"><div class="seg" role="tablist">{tabnav}</div></div>
 
-  {f'''<section><h2>Referrals worth sending</h2>
-    <p class="sectionnote">A referral moves the odds more than another application does.</p>
-    <div class="grid">{"".join(ref_cards)}</div></section>''' if ref_cards else ''}
+  <div class="panel on" id="p-act" role="tabpanel">
+    <p class="hint">Each opens straight to where it is blocked.</p>
+    {f'<div class="grid">{"".join(cards)}</div>' if cards else '<p class="empty">Nothing blocked right now.</p>'}
+    {unconfirmed_block}
+  </div>
 
-  {unconfirmed_block}
+  <div class="panel" id="p-ref" role="tabpanel">
+    <p class="hint">A referral moves the odds more than another application.</p>
+    {f'<div class="grid">{"".join(ref_cards)}</div>' if ref_cards else '<p class="empty">No referral paths found yet.</p>'}
+  </div>
 
-  <section>
-    <h2>Submitted</h2>
-    <p class="sectionnote">Already out. Check here before applying again.</p>
-    <div class="panel"><div class="tablewrap"><table>
+  <div class="panel" id="p-done" role="tabpanel">
+    <p class="hint">Already out. Check here before applying again.</p>
+    <div class="sheet"><div class="tablewrap"><table>
       <thead><tr><th>Company</th><th>Role</th><th>When</th></tr></thead>
-      <tbody>{sub_rows}</tbody>
-    </table></div></div>
-  </section>
+      <tbody>{sub_rows}</tbody></table></div></div>
+  </div>
 
-  {watch_block}
+  {f'''<div class="panel" id="p-watch" role="tabpanel">
+    <p class="hint">Found, not started.</p>
+    <div class="sheet"><div class="tablewrap"><table>
+      <thead><tr><th>Company</th><th>Role</th><th></th></tr></thead>
+      <tbody>{watch_rows}</tbody></table></div></div>
+  </div>''' if watch else ""}
 </div>
 
 <script>
-  document.querySelectorAll('button.copy').forEach(function (b) {{
+  var tabs = document.querySelectorAll('.tab');
+  tabs.forEach(function (t) {{
+    t.addEventListener('click', function () {{
+      tabs.forEach(function (o) {{ o.classList.remove('on'); o.setAttribute('aria-selected','false'); }});
+      document.querySelectorAll('.panel').forEach(function (p) {{ p.classList.remove('on'); }});
+      t.classList.add('on'); t.setAttribute('aria-selected','true');
+      var p = document.getElementById('p-' + t.dataset.tab);
+      if (p) p.classList.add('on');
+    }});
+  }});
+  document.querySelectorAll('.copy').forEach(function (b) {{
     b.addEventListener('click', function () {{
       navigator.clipboard.writeText(b.dataset.msg).then(function () {{
-        var t = b.textContent;
-        b.textContent = 'Copied'; b.dataset.done = '1';
-        setTimeout(function () {{ b.textContent = t; delete b.dataset.done; }}, 1600);
+        var s = b.textContent; b.textContent = 'Copied'; b.dataset.done = '1';
+        setTimeout(function () {{ b.textContent = s; delete b.dataset.done; }}, 1600);
       }});
     }});
   }});
