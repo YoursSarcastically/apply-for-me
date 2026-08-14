@@ -74,7 +74,13 @@ Check the resume against the user's LinkedIn headline and any existing ATS profi
 
 ## Phase 2: Finding roles
 
-When asked to find jobs rather than apply to a specific one, search, then **read each posting's full body before shortlisting.** Titles are marketing:
+When asked to find jobs rather than apply to a specific one, treat it as **research across several channels, not one search on one site.**
+
+LinkedIn is one index with loose keyword matching, and searching only there reliably produces a false conclusion: that a role type "barely exists", when the openings are sitting on company boards and startup aggregators LinkedIn never indexed. Read `references/sourcing.md` for the channel map, then sweep general aggregators, startup-native boards, any regional boards that apply, and the ATS boards of target companies directly. Vary the query too — "AI PM", "GenAI PM", "Agentic AI PM", "LLM PM" return substantially different sets.
+
+Dedupe by company and normalised title, preferring the company's own ATS link over aggregator copies. **Report which channels you searched, including ones that returned nothing** — an empty channel is a finding, whereas silence about it reads as coverage.
+
+Then **read each surviving posting's full body before shortlisting.** Titles are marketing:
 
 - "Product Manager, User Voice AI and Agentic Experiences" was a feedback-ingestion platform role: APIs, serialization, pipelines. No AI product ownership.
 - A posting listed "Mumbai, Hybrid" required full relocation to Bangkok, stated far down the body.
@@ -149,6 +155,46 @@ It reads the store and produces four sections:
 Then publish it with the Artifact tool and give the user the link.
 
 Regenerate it whenever the state meaningfully changes. Pass `--url` for the same artifact URL rather than creating a new one each time.
+
+## Running as a standing agent
+
+The natural shape of this work is not one long session. It is a **cycle that reruns**: sweep for new postings, apply where nothing is blocking, report what needs the user. Roles appear hourly and the best ones have single-digit applicant counts for a short window, so recurring beats exhaustive.
+
+### The scan cycle
+
+One cycle is:
+
+1. **Sweep** the channels in `references/sourcing.md`, filtered to postings newer than the last run.
+2. **Dedupe** against history — `store.py history-status` gives the latest event per application, which is the guard against reapplying.
+3. **Triage**: read full bodies, rank on fit and on applicant-count-versus-age.
+4. **Apply** to anything that needs no new information, using the stored profile and answers.
+5. **Park** anything blocked as a session with its pending fields and reasons.
+6. **Regenerate the dashboard** and republish to the same artifact URL.
+7. **Report**: what is new, what went out, what needs them, in a few lines.
+
+Steps 1 through 5 need no user input, which is the entire point of the intake phase. A cycle that interrupts three times has usually skipped something that intake should have captured.
+
+### Triggering it
+
+**On demand** — the user says "check for new jobs" or "run a scan". Run one cycle and report.
+
+**On a schedule** — for recurring runs without being asked, use the `/loop` skill for interval or self-paced repetition, or a scheduled task for fixed times. A daily morning run suits most searches; hourly is justified only while chasing very fresh postings, and mostly returns nothing.
+
+Between cycles, hold the state in the store rather than in conversation. A cycle should be able to start cold, read the store, and know exactly where things stand.
+
+### Keeping the dashboard current
+
+Republish to the **same artifact URL** every cycle by passing the stored URL to the Artifact tool. The user keeps one bookmark that is always current, rather than accumulating links.
+
+Be accurate about what this is: the page is regenerated when a cycle runs, not continuously live. If asked for genuinely live updating, say plainly that a published page can only refresh itself where the runtime grants it a data capability, and check `artifact-capabilities` for what is actually available rather than promising it.
+
+Record the artifact URL in the store so later cycles, including ones in fresh sessions, update rather than duplicate it.
+
+### Reporting between cycles
+
+Keep it short and factual. What is new since last time, what you submitted, what is blocked and why. Quiet cycles should say so in one line rather than manufacturing activity — "swept 6 channels, nothing new matching" is a complete and useful report.
+
+Never claim a submission you did not observe. If a cycle ends uncertain whether something went through, say so and log `reviewed` rather than `completed`.
 
 ## Storage
 

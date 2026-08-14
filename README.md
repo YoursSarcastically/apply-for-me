@@ -44,19 +44,23 @@ job-application/
     └── storage.md            storage contract and confidence model
 ```
 
-### Five phases
+### Six phases
 
 **1. Intake, once.** You give it a resume. It extracts what it can, shows you what it got, then asks the questions resumes never answer but forms always demand: fixed versus total compensation, notice period, work authorization *per country*, relocation, per-role cities, education months, past audit-firm association, demographic preferences.
 
 That last cluster is the point. Most mid-application interruptions are avoidable — the information was knowable upfront. Front-loading it is what makes the rest low-touch.
 
-**2. Finding roles.** Searches, then **reads each full posting before shortlisting**, because titles lie (see below). Captures real location, seniority, sponsorship stance, and referral signals. Flags application quotas.
+**2. Finding roles.** Sweeps **many channels, not one site**: general aggregators, startup-native boards (YC, Wellfound, HN Who's Hiring), regional boards, and company ATS boards directly via `site:job-boards.greenhouse.io` style searches. Then **reads each full posting before shortlisting**, because titles lie (see below).
+
+Searching only LinkedIn produces a specific false conclusion: that a role type barely exists, when the openings are on boards LinkedIn never indexed. A real sweep for senior AI product roles returned 1,000+ LinkedIn results that were mostly banking and insurance PM roles, while the AI-native openings sat elsewhere.
 
 **3. Referrals first.** For any role where you have a connection, it surfaces that *before* filling the form and drafts the outreach. A referral on a role with 200 applicants beats being applicant 201.
 
 **4. Filling.** Identifies the ATS, reads the relevant platform notes, fills from your stored profile, verifies every few fields. Never invents. Stops at legal declarations.
 
-**5. Dashboard.** Generates an artifact showing what needs you, with a direct link to each exact page.
+**5. Dashboard.** Generates a self-contained status page showing what needs you, with a direct link to each blocked page.
+
+**6. Repeat.** The natural shape is a cycle, not a session. Sweep, dedupe against history, triage, apply where nothing is blocking, park what is blocked, republish the dashboard to the same URL, report in a few lines. Run it on demand or on a schedule.
 
 ### The confidence model
 

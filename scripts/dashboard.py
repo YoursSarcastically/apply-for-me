@@ -174,8 +174,8 @@ def build(state, generated):
     watch_block = f"""
       <section>
         <h2>Watch list</h2>
-        <div class="tablewrap"><table><thead><tr><th>Company</th><th>Role</th><th></th></tr></thead>
-        <tbody>{watch_rows}</tbody></table></div>
+        <div class="panel"><div class="tablewrap"><table><thead><tr><th>Company</th><th>Role</th><th></th></tr></thead>
+        <tbody>{watch_rows}</tbody></table></div></div>
       </section>""" if watch else ""
 
     total_todo = sum(len(s.get("pendingFields", [])) for s in blocked)
@@ -183,174 +183,191 @@ def build(state, generated):
     return f"""<title>Application Board</title>
 <style>
   :root {{
-    --bg:#f4f6f9; --surface:#ffffff; --sunk:#eef1f6;
-    --ink:#12151d; --ink-2:#4a5263; --ink-3:#7b8395;
-    --line:#dfe4ec; --line-2:#c9d1de;
-    --accent:#2f43d4;
-    --hold:#9a5511; --hold-bg:#fdf3e7;
-    --go:#0d6b4a;   --go-bg:#e8f5ef;
-    --warm:#6532c4; --warm-bg:#f1ebfd;
+    color-scheme: light dark;
+    --bg:#f5f5f7; --card:#ffffff; --card-2:#fbfbfd;
+    --ink:#1d1d1f; --ink-2:#6e6e73; --ink-3:#86868b;
+    --hair:rgba(0,0,0,.08); --hair-2:rgba(0,0,0,.04);
+    --blue:#0071e3; --orange:#c2410c; --green:#047857; --purple:#6d28d9;
+    --tint-o:rgba(234,88,12,.07); --tint-g:rgba(5,150,105,.07); --tint-p:rgba(109,40,217,.06);
+    --shadow:0 1px 2px rgba(0,0,0,.04), 0 4px 16px rgba(0,0,0,.05);
+    --shadow-2:0 1px 2px rgba(0,0,0,.05), 0 8px 28px rgba(0,0,0,.07);
   }}
-  @media (prefers-color-scheme: dark) {{
+  @media (prefers-color-scheme:dark) {{
     :root:not([data-theme="light"]) {{
-      --bg:#0e1016; --surface:#171a22; --sunk:#12141b;
-      --ink:#e9ecf3; --ink-2:#a4adbf; --ink-3:#727c91;
-      --line:#242833; --line-2:#333947;
-      --accent:#7b8cff;
-      --hold:#e0a463; --hold-bg:#261c10;
-      --go:#63c79c;   --go-bg:#10241c;
-      --warm:#b294f5; --warm-bg:#1c1630;
+      --bg:#000000; --card:#1c1c1e; --card-2:#161618;
+      --ink:#f5f5f7; --ink-2:#a1a1a6; --ink-3:#8a8a8e;
+      --hair:rgba(255,255,255,.12); --hair-2:rgba(255,255,255,.06);
+      --blue:#0a84ff; --orange:#ff9f0a; --green:#30d158; --purple:#bf5af2;
+      --tint-o:rgba(255,159,10,.10); --tint-g:rgba(48,209,88,.09); --tint-p:rgba(191,90,242,.09);
+      --shadow:0 1px 2px rgba(0,0,0,.4); --shadow-2:0 2px 12px rgba(0,0,0,.5);
     }}
   }}
   :root[data-theme="dark"] {{
-    --bg:#0e1016; --surface:#171a22; --sunk:#12141b;
-    --ink:#e9ecf3; --ink-2:#a4adbf; --ink-3:#727c91;
-    --line:#242833; --line-2:#333947;
-    --accent:#7b8cff;
-    --hold:#e0a463; --hold-bg:#261c10;
-    --go:#63c79c;   --go-bg:#10241c;
-    --warm:#b294f5; --warm-bg:#1c1630;
+    --bg:#000000; --card:#1c1c1e; --card-2:#161618;
+    --ink:#f5f5f7; --ink-2:#a1a1a6; --ink-3:#8a8a8e;
+    --hair:rgba(255,255,255,.12); --hair-2:rgba(255,255,255,.06);
+    --blue:#0a84ff; --orange:#ff9f0a; --green:#30d158; --purple:#bf5af2;
+    --tint-o:rgba(255,159,10,.10); --tint-g:rgba(48,209,88,.09); --tint-p:rgba(191,90,242,.09);
+    --shadow:0 1px 2px rgba(0,0,0,.4); --shadow-2:0 2px 12px rgba(0,0,0,.5);
   }}
 
-  *, *::before, *::after {{ box-sizing:border-box; }}
+  *,*::before,*::after {{ box-sizing:border-box; }}
   html {{ -webkit-text-size-adjust:100%; }}
   body {{
     margin:0; background:var(--bg); color:var(--ink);
-    font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",sans-serif;
-    font-size:15px; line-height:1.5;
-    -webkit-font-smoothing:antialiased;
+    font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display",
+      "Helvetica Neue",Inter,system-ui,sans-serif;
+    font-size:17px; line-height:1.47059; letter-spacing:-.022em;
+    -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale;
   }}
-  .wrap {{ max-width:1040px; margin:0 auto; padding:clamp(1.5rem,4vw,3rem) clamp(1rem,3vw,1.75rem) 5rem; }}
+  .wrap {{ max-width:980px; margin:0 auto; padding:clamp(2.5rem,7vw,5rem) 1.5rem 7rem; }}
 
-  .masthead {{ display:flex; align-items:baseline; justify-content:space-between;
-    gap:1rem; flex-wrap:wrap; padding-bottom:1.1rem; border-bottom:1px solid var(--line-2); }}
-  h1 {{ font-size:clamp(1.5rem,3.5vw,1.9rem); font-weight:640; letter-spacing:-.025em;
-    margin:0; text-wrap:balance; }}
-  .stamp {{ font-size:.78rem; color:var(--ink-3); font-variant-numeric:tabular-nums; }}
+  .hero {{ margin-bottom:3.5rem; }}
+  h1 {{ font-size:clamp(2.4rem,6vw,3.4rem); font-weight:700; letter-spacing:-.035em;
+    line-height:1.05; margin:0 0 .6rem; text-wrap:balance; }}
+  .lede {{ font-size:1.24rem; color:var(--ink-2); margin:0; letter-spacing:-.019em;
+    line-height:1.38; max-width:34ch; text-wrap:balance; }}
+  .lede b {{ color:var(--ink); font-weight:600; }}
+  .stamp {{ font-size:.82rem; color:var(--ink-3); margin:1.4rem 0 0; letter-spacing:-.01em;
+    font-variant-numeric:tabular-nums; }}
 
-  .tally {{ display:grid; grid-template-columns:repeat(auto-fit,minmax(132px,1fr));
-    gap:1px; background:var(--line); border:1px solid var(--line);
-    border-radius:8px; overflow:hidden; margin:1.5rem 0 2.75rem; }}
-  .tally div {{ background:var(--surface); padding:.85rem 1rem; }}
-  .tally b {{ display:block; font-size:1.7rem; font-weight:600; line-height:1.05;
-    letter-spacing:-.03em; font-variant-numeric:tabular-nums; }}
-  .tally span {{ font-size:.7rem; color:var(--ink-3); text-transform:uppercase;
-    letter-spacing:.09em; font-weight:600; }}
-  .tally .lead b {{ color:var(--hold); }}
+  .tally {{ display:grid; grid-template-columns:repeat(auto-fit,minmax(126px,1fr));
+    gap:.75rem; margin:2.5rem 0 3.75rem; }}
+  .stat {{ background:var(--card); border-radius:18px; padding:1.15rem 1.25rem;
+    box-shadow:var(--shadow); }}
+  .stat b {{ display:block; font-size:2.05rem; font-weight:600; line-height:1;
+    letter-spacing:-.04em; font-variant-numeric:tabular-nums; margin-bottom:.3rem; }}
+  .stat span {{ font-size:.8rem; color:var(--ink-2); letter-spacing:-.01em; }}
+  .stat.lead b {{ color:var(--orange); }}
 
-  h2 {{ font-size:.75rem; text-transform:uppercase; letter-spacing:.11em;
-    color:var(--ink-3); font-weight:700; margin:0 0 .9rem;
-    display:flex; align-items:center; gap:.6rem; }}
-  h2::after {{ content:""; flex:1; height:1px; background:var(--line); }}
-  section {{ margin-bottom:2.75rem; }}
+  h2 {{ font-size:1.55rem; font-weight:650; letter-spacing:-.028em; margin:0 0 .35rem; }}
+  .sectionnote {{ color:var(--ink-2); font-size:.98rem; margin:0 0 1.5rem; letter-spacing:-.015em; }}
+  section {{ margin-bottom:4rem; }}
 
-  .grid {{ display:grid; gap:.85rem; grid-template-columns:repeat(auto-fill,minmax(310px,1fr)); }}
+  .grid {{ display:grid; gap:1rem; grid-template-columns:repeat(auto-fill,minmax(320px,1fr)); }}
 
-  .card {{ background:var(--surface); border:1px solid var(--line);
-    border-radius:8px; padding:1rem 1.05rem; display:flex; flex-direction:column; gap:.7rem; }}
-  .card.hold {{ background:var(--hold-bg); border-color:color-mix(in srgb,var(--hold) 22%,var(--line)); }}
-  .card.ready {{ background:var(--go-bg); border-color:color-mix(in srgb,var(--go) 22%,var(--line)); }}
-  .card.ref {{ background:var(--warm-bg); border-color:color-mix(in srgb,var(--warm) 22%,var(--line)); }}
+  .card {{ background:var(--card); border-radius:20px; padding:1.4rem 1.5rem 1.25rem;
+    box-shadow:var(--shadow); display:flex; flex-direction:column; gap:1rem;
+    transition:box-shadow .25s cubic-bezier(.4,0,.2,1), transform .25s cubic-bezier(.4,0,.2,1); }}
+  .card:hover {{ box-shadow:var(--shadow-2); transform:translateY(-1px); }}
+  .card.hold {{ background:linear-gradient(var(--tint-o),var(--tint-o)),var(--card); }}
+  .card.ready {{ background:linear-gradient(var(--tint-g),var(--tint-g)),var(--card); }}
+  .card.ref {{ background:linear-gradient(var(--tint-p),var(--tint-p)),var(--card); }}
 
-  .card header {{ display:flex; justify-content:space-between; gap:.7rem; align-items:flex-start; }}
-  .card h3 {{ margin:0; font-size:1rem; font-weight:620; letter-spacing:-.01em; }}
-  .role {{ margin:.15rem 0 0; color:var(--ink-2); font-size:.86rem; }}
+  .card header {{ display:flex; justify-content:space-between; gap:.9rem; align-items:flex-start; }}
+  .card h3 {{ margin:0; font-size:1.13rem; font-weight:620; letter-spacing:-.022em; line-height:1.25; }}
+  .role {{ margin:.22rem 0 0; color:var(--ink-2); font-size:.93rem; letter-spacing:-.014em;
+    line-height:1.35; }}
 
-  .chip {{ font-size:.66rem; font-weight:700; padding:.24rem .5rem; border-radius:4px;
-    white-space:nowrap; text-transform:uppercase; letter-spacing:.06em;
-    font-variant-numeric:tabular-nums; border:1px solid transparent; }}
-  .chip.hold {{ color:var(--hold); background:var(--surface);
-    border-color:color-mix(in srgb,var(--hold) 30%,transparent); }}
-  .chip.ready {{ color:var(--go); background:var(--surface);
-    border-color:color-mix(in srgb,var(--go) 30%,transparent); }}
-  .chip.warm {{ color:var(--warm); background:var(--surface);
-    border-color:color-mix(in srgb,var(--warm) 30%,transparent); }}
+  .chip {{ font-size:.735rem; font-weight:590; padding:.28rem .62rem; border-radius:100px;
+    white-space:nowrap; letter-spacing:-.008em; font-variant-numeric:tabular-nums; }}
+  .chip.hold {{ color:var(--orange); background:var(--tint-o); }}
+  .chip.ready {{ color:var(--green); background:var(--tint-g); }}
+  .chip.warm {{ color:var(--purple); background:var(--tint-p); }}
 
-  ul.todo {{ margin:0; padding:0; list-style:none; display:flex; flex-direction:column; gap:.35rem; }}
-  ul.todo li {{ font-size:.865rem; padding-left:1.05rem; position:relative; color:var(--ink); }}
-  ul.todo li::before {{ content:""; position:absolute; left:0; top:.5em;
-    width:5px; height:5px; border-radius:1px; background:var(--hold); }}
-  ul.todo li.done {{ padding-left:0; color:var(--go); font-weight:560; }}
-  ul.todo li.done::before {{ display:none; }}
+  ul.todo {{ margin:0; padding:0; list-style:none; display:flex; flex-direction:column; gap:.5rem; }}
+  ul.todo li {{ font-size:.93rem; line-height:1.38; letter-spacing:-.014em;
+    padding-left:1.3rem; position:relative; }}
+  ul.todo li::before {{ content:""; position:absolute; left:.28rem; top:.52em;
+    width:6px; height:6px; border-radius:50%; background:var(--orange); opacity:.85; }}
+  ul.todo li.done {{ padding-left:1.3rem; color:var(--green); font-weight:550; }}
+  ul.todo li.done::before {{ content:"\\2713"; background:none; width:auto; height:auto;
+    left:0; top:0; font-size:.95rem; font-weight:700; opacity:1; }}
   .why {{ color:var(--ink-2); }}
-  .why::before {{ content:" — "; }}
+  .why::before {{ content:" \\2014 "; }}
 
   .card footer {{ display:flex; justify-content:space-between; align-items:center;
-    gap:.6rem; flex-wrap:wrap; border-top:1px solid var(--line);
-    padding-top:.7rem; margin-top:auto; }}
-  .ats {{ color:var(--ink-3); font-size:.68rem; text-transform:uppercase; letter-spacing:.08em; font-weight:650; }}
+    gap:.75rem; flex-wrap:wrap; border-top:1px solid var(--hair-2);
+    padding-top:.95rem; margin-top:auto; }}
+  .ats {{ color:var(--ink-3); font-size:.79rem; letter-spacing:-.008em; }}
 
-  a.go {{ color:var(--accent); font-weight:620; text-decoration:none; font-size:.86rem;
-    padding:.3rem .55rem; margin:-.3rem -.15rem; border-radius:5px; }}
-  a.go:hover {{ background:color-mix(in srgb,var(--accent) 10%,transparent); }}
-  a.go:focus-visible, button:focus-visible {{ outline:2px solid var(--accent); outline-offset:2px; }}
+  a.go {{ color:var(--blue); font-weight:520; text-decoration:none; font-size:.93rem;
+    letter-spacing:-.016em; border-radius:8px; padding:.2rem .1rem; }}
+  a.go:hover {{ text-decoration:underline; text-underline-offset:2px; }}
+  a.go:focus-visible, button:focus-visible {{ outline:3px solid var(--blue);
+    outline-offset:3px; border-radius:8px; }}
 
-  .contact {{ margin:0; font-size:.88rem; line-height:1.4; }}
-  .contact strong {{ font-weight:620; }}
-  .contact span {{ display:block; color:var(--ink-2); font-size:.82rem; }}
-  .msg {{ display:flex; flex-direction:column; gap:.5rem; align-items:flex-start; }}
-  .msg pre {{ background:var(--surface); border:1px solid var(--line); border-radius:6px;
-    padding:.7rem .8rem; font-family:inherit; font-size:.82rem; line-height:1.5;
-    white-space:pre-wrap; margin:0; max-height:150px; overflow:auto; width:100%;
-    color:var(--ink-2); }}
-  button.copy {{ background:var(--surface); border:1px solid var(--line-2); color:var(--ink);
-    border-radius:5px; padding:.36rem .75rem; font:inherit; font-size:.8rem; font-weight:600;
-    cursor:pointer; transition:border-color .12s, color .12s; }}
-  button.copy:hover {{ border-color:var(--warm); color:var(--warm); }}
-  button.copy[data-done] {{ color:var(--go); border-color:var(--go); }}
+  .contact {{ margin:0; font-size:.95rem; letter-spacing:-.015em; line-height:1.4; }}
+  .contact strong {{ font-weight:600; }}
+  .contact span {{ display:block; color:var(--ink-2); font-size:.88rem; margin-top:.1rem; }}
+  .msg {{ display:flex; flex-direction:column; gap:.8rem; align-items:flex-start; }}
+  .msg pre {{ background:var(--card-2); border-radius:12px; padding:.9rem 1rem;
+    font-family:inherit; font-size:.875rem; line-height:1.5; letter-spacing:-.012em;
+    white-space:pre-wrap; margin:0; max-height:142px; overflow:auto; width:100%;
+    color:var(--ink-2); box-shadow:inset 0 0 0 1px var(--hair-2); }}
+  button.copy {{ background:var(--blue); border:none; color:#fff; border-radius:100px;
+    padding:.5rem 1.1rem; font:inherit; font-size:.875rem; font-weight:520;
+    letter-spacing:-.014em; cursor:pointer;
+    transition:opacity .2s, transform .12s; }}
+  button.copy:hover {{ opacity:.86; }}
+  button.copy:active {{ transform:scale(.97); }}
+  button.copy[data-done] {{ background:var(--green); }}
 
-  .tablewrap {{ overflow-x:auto; border:1px solid var(--line); border-radius:8px; background:var(--surface); }}
-  table {{ width:100%; border-collapse:collapse; font-size:.875rem; }}
-  th {{ text-align:left; font-size:.67rem; text-transform:uppercase; letter-spacing:.09em;
-    color:var(--ink-3); font-weight:700; padding:.6rem .9rem; background:var(--sunk);
-    border-bottom:1px solid var(--line); white-space:nowrap; }}
-  td {{ padding:.6rem .9rem; border-bottom:1px solid var(--line); }}
+  .panel {{ background:var(--card); border-radius:20px; box-shadow:var(--shadow);
+    overflow:hidden; }}
+  .tablewrap {{ overflow-x:auto; }}
+  table {{ width:100%; border-collapse:collapse; font-size:.95rem; letter-spacing:-.015em; }}
+  th {{ text-align:left; font-size:.79rem; color:var(--ink-3); font-weight:510;
+    padding:.95rem 1.5rem; border-bottom:1px solid var(--hair); white-space:nowrap;
+    letter-spacing:-.008em; }}
+  td {{ padding:.92rem 1.5rem; border-bottom:1px solid var(--hair-2); }}
   tr:last-child td {{ border-bottom:none; }}
   td.when {{ color:var(--ink-3); font-variant-numeric:tabular-nums; white-space:nowrap; }}
 
-  .note {{ background:var(--hold-bg); border:1px solid color-mix(in srgb,var(--hold) 25%,var(--line));
-    border-radius:8px; padding:1rem 1.15rem; }}
-  .note h2 {{ color:var(--hold); margin-bottom:.5rem; }}
-  .note h2::after {{ background:color-mix(in srgb,var(--hold) 25%,transparent); }}
-  .note p {{ margin:0 0 .6rem; font-size:.86rem; color:var(--ink-2); }}
-  .note ul {{ margin:0; padding-left:1.1rem; font-size:.875rem; }}
-  .note li {{ margin:.2rem 0; }}
+  .note {{ background:linear-gradient(var(--tint-o),var(--tint-o)),var(--card);
+    border-radius:20px; padding:1.5rem 1.6rem; box-shadow:var(--shadow); }}
+  .note h2 {{ font-size:1.2rem; margin-bottom:.35rem; }}
+  .note p {{ margin:0 0 .9rem; font-size:.95rem; color:var(--ink-2); letter-spacing:-.015em; }}
+  .note ul {{ margin:0; padding:0; list-style:none; display:flex; flex-direction:column; gap:.4rem; }}
+  .note li {{ font-size:.95rem; letter-spacing:-.015em; }}
 
-  .empty {{ color:var(--ink-3); font-size:.9rem; padding:1.4rem; text-align:center;
-    border:1px dashed var(--line-2); border-radius:8px; }}
+  .empty {{ color:var(--ink-2); font-size:1.05rem; padding:3rem 1.5rem; text-align:center;
+    background:var(--card); border-radius:20px; box-shadow:var(--shadow); letter-spacing:-.018em; }}
   .muted {{ color:var(--ink-3); }}
-  @media (prefers-reduced-motion:reduce) {{ * {{ transition:none !important; }} }}
+  @media (prefers-reduced-motion:reduce) {{ *,*::before,*::after {{
+    transition:none !important; animation:none !important; }} }}
+  @media (max-width:600px) {{
+    body {{ font-size:16px; }}
+    .grid {{ grid-template-columns:1fr; }}
+    th, td {{ padding-left:1.15rem; padding-right:1.15rem; }}
+  }}
 </style>
 
 <div class="wrap">
-  <header class="masthead">
+  <header class="hero">
     <h1>Application board</h1>
-    <p class="stamp">{esc(name)} &middot; {esc(generated)}</p>
+    <p class="lede"><b>{len(blocked)} application{'' if len(blocked)==1 else 's'}</b> {'is' if len(blocked)==1 else 'are'} waiting on you.
+       {f'{len(referrals)} referral{"" if len(referrals)==1 else "s"} ready to send.' if referrals else ''}</p>
+    <p class="stamp">{esc(name)} &middot; updated {esc(generated)}</p>
   </header>
 
   <div class="tally">
-    <div class="lead"><b>{len(blocked)}</b><span>need you</span></div>
-    <div><b>{total_todo}</b><span>open items</span></div>
-    <div><b>{len(referrals)}</b><span>referrals</span></div>
-    <div><b>{len(submitted)}</b><span>submitted</span></div>
+    <div class="stat lead"><b>{len(blocked)}</b><span>Need you</span></div>
+    <div class="stat"><b>{total_todo}</b><span>Open items</span></div>
+    <div class="stat"><b>{len(referrals)}</b><span>Referrals</span></div>
+    <div class="stat"><b>{len(submitted)}</b><span>Submitted</span></div>
   </div>
 
   <section>
     <h2>Needs you</h2>
+    <p class="sectionnote">Each one opens straight to the page where it is blocked.</p>
     {f'<div class="grid">{"".join(cards)}</div>' if cards
-     else '<p class="empty">Nothing blocked right now.</p>'}
+     else '<p class="empty">Nothing is blocked right now.</p>'}
   </section>
 
-  {f'<section><h2>Referrals worth sending</h2><div class="grid">{"".join(ref_cards)}</div></section>' if ref_cards else ''}
+  {f'''<section><h2>Referrals worth sending</h2>
+    <p class="sectionnote">A referral moves the odds more than another application does.</p>
+    <div class="grid">{"".join(ref_cards)}</div></section>''' if ref_cards else ''}
 
   {unconfirmed_block}
 
   <section>
     <h2>Submitted</h2>
-    <div class="tablewrap"><table>
+    <p class="sectionnote">Already out. Check here before applying again.</p>
+    <div class="panel"><div class="tablewrap"><table>
       <thead><tr><th>Company</th><th>Role</th><th>When</th></tr></thead>
       <tbody>{sub_rows}</tbody>
-    </table></div>
+    </table></div></div>
   </section>
 
   {watch_block}
@@ -362,7 +379,7 @@ def build(state, generated):
       navigator.clipboard.writeText(b.dataset.msg).then(function () {{
         var t = b.textContent;
         b.textContent = 'Copied'; b.dataset.done = '1';
-        setTimeout(function () {{ b.textContent = t; delete b.dataset.done; }}, 1500);
+        setTimeout(function () {{ b.textContent = t; delete b.dataset.done; }}, 1600);
       }});
     }});
   }});
