@@ -4,6 +4,8 @@ A [Claude Skill](https://docs.claude.com/en/docs/claude-code/skills) for applyin
 
 Every rule in it exists because something went wrong without it during real use. Those failure modes are documented below, since they are the interesting part.
 
+![The dashboard's Needs you tab, showing five applications with what is blocking each one](docs/needs-you.png)
+
 ---
 
 ## Why this exists
@@ -53,6 +55,15 @@ That last cluster is the point. Most mid-application interruptions are avoidable
 **2. Finding roles.** Sweeps **many channels, not one site**: general aggregators, startup-native boards (YC, Wellfound, HN Who's Hiring), regional boards, and company ATS boards directly via `site:job-boards.greenhouse.io` style searches. Then **reads each full posting before shortlisting**, because titles lie (see below).
 
 Searching only LinkedIn produces a specific false conclusion: that a role type barely exists, when the openings are on boards LinkedIn never indexed. A real sweep for senior AI product roles returned 1,000+ LinkedIn results that were mostly banking and insurance PM roles, while the AI-native openings sat elsewhere.
+
+Public boards still have a ceiling, so the skill also covers what search structurally cannot reach:
+
+- **Log in before sweeping.** Instahyre, Naukri, Cutshort and Wellfound show a fraction of listings to logged-out visitors. A logged-out search still returns results, just a thin and unrepresentative slice, which is what makes this easy to miss. Cheapest and largest single unlock.
+- **VC portfolio boards.** Funds publish job pages across their whole portfolio, carrying roles aggregators never see, skewed toward well-funded startups.
+- **Catch postings in their first hour.** Applicant count matters more than almost any other signal: three applicants at one hour old is a different proposition from 200+ at two weeks. Sort by recent, not relevance, since relevance ranking buries new postings.
+- **Recruiter outreach.** A large share of senior roles are filled before anything is published. No scraper reaches these. It is a structural limit, not a gap to engineer around.
+
+The skill is also honest about stopping. When new searches keep returning roles already seen, it says so — past that point volume is motion, not progress, and the return shifts to converting what has already been found.
 
 **3. Referrals first.** For any role where you have a connection, it surfaces that *before* filling the form and drafts the outreach. A referral on a role with 200 applicants beats being applicant 201.
 
@@ -168,14 +179,22 @@ Sessions store field *descriptions*, never values. Values live in the answer sto
 python3 scripts/dashboard.py --out dashboard.html
 ```
 
-Self-contained HTML, no network calls, light and dark themes. Four sections in deliberate order:
+Self-contained HTML, no network calls, light and dark themes, four tabs.
 
-1. **Needs you** — every blocked application, exactly what is missing and why, and a link straight to the page. One click plus one action.
-2. **Referral opportunities** — who to contact, with the drafted message and a copy button.
+The landing tab is whatever is blocking you. Each card names the specific missing field and why it needs a human, and ends in a button that opens the exact page.
+
+![The Referrals tab, showing a first-degree contact with a drafted message and a copy button](docs/referrals.png)
+
+The Referrals tab exists because a referral moves the odds more than another application does. Each card carries the contact, their relationship to the role, and a drafted message ready to copy.
+
+Four tabs in deliberate order:
+
+1. **Needs you** — every blocked application, exactly what is missing and why, and a button straight to the page.
+2. **Referrals** — who to contact, with the drafted message and a copy button.
 3. **Submitted** — so nothing gets applied to twice.
-4. **Watch list** — found, not started.
+4. **Watching** — found, not started.
 
-A "Not confirmed submitted" section appears when something reached review without an observed confirmation.
+A "Not confirmed submitted" panel appears when something reached review without an observed confirmation, because an honest gap is more useful than a confident wrong entry.
 
 ---
 

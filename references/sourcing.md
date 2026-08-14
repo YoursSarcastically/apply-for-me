@@ -76,6 +76,47 @@ Beyond title, company, location and link:
 - **Quota or reapply limits.**
 - **Compensation**, when shown. Glassdoor and Wellfound often show ranges that LinkedIn hides.
 
+## Reaching what search cannot
+
+Sweeping public boards has a ceiling, and hitting it is normal rather than a failure. These four extend past it, roughly in order of return per unit of effort.
+
+### 1. Log in before searching
+
+Instahyre, Naukri, Cutshort and Wellfound show a fraction of their listings to logged-out visitors. This is the cheapest and largest single unlock, and it is easy to miss because a logged-out search still returns *results* — just a thin, non-representative slice.
+
+A concrete case: a strong Bangalore AI PM role at a major company was found only through a Google index of an Instahyre page, never through searching Instahyre itself.
+
+Ask the user to sign in to the relevant boards in the Chrome profile before a sweep. When a channel is being searched logged-out, say so in the report, because the coverage claim is materially weaker.
+
+### 2. VC portfolio job boards
+
+Funds publish job pages spanning their whole portfolio. These carry roles that never reach aggregators, and they skew toward exactly the well-funded startups worth applying to.
+
+- Accel, Sequoia (Peak XV in India), Lightspeed, Matrix, Elevation, Blume
+- `jobs.<fund>.com` or a "Careers"/"Talent" link from the fund site
+- Many are Getro or Consider-powered, with a searchable index across every portfolio company
+
+Pick the funds that invest in the user's sector and stage. Two or three relevant portfolios beat scraping every fund.
+
+### 3. Catch postings in their first hour
+
+Applicant count matters more than almost any other signal. A role at 3 applicants and one hour old is a materially different proposition from the same role at 200+ and two weeks.
+
+Set up saved searches with alerts on the main boards so new postings surface immediately, and keep the loop's sweep filtered to "past 24 hours" on frequent runs. Sort by most recent rather than relevance — relevance ranking buries new postings under older, better-optimised ones.
+
+When a scan surfaces something very fresh with a low applicant count, say so prominently and prioritise it. That window closes within a day.
+
+### 4. Recruiter outreach for the unposted market
+
+A large share of senior roles are filled through recruiter networks and referrals before anything is published. No amount of scraping reaches these, which is a structural limit rather than a gap to engineer around.
+
+What does reach them:
+- Specialist recruiters in the user's function and geography, contacted directly
+- Recruiters who have previously reached out, revived with a note that the user is now looking
+- The recruiters and talent partners named on postings, who typically hold several unlisted reqs
+
+Draft these; sending needs the user's permission like any outbound message. And be clear-eyed about the trade: this is slower and less automatable than search, which is exactly why it is under-exploited.
+
 ## Diminishing returns
 
 Sourcing has a stopping point, and recognising it is part of doing this well.
