@@ -1,0 +1,8 @@
+# Personal data never belongs in the repo
+.job-application/
+*.pdf
+*.docx
+dashboard.html
+__pycache__/
+*.pyc
+.DS_Store
