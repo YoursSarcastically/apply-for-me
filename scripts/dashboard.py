@@ -113,11 +113,12 @@ def build(state, generated):
     cards = []
     for s in blocked:
         pending = s.get("pendingFields", [])
+        aid = s.get("applicationId") or f"{s.get('company','')}-{s.get('role','')}"
         badge = "ready" if not pending else f"{len(pending)} to do"
         cls = "ready" if not pending else "hold"
         chip = "ready" if not pending else "hold"
         cards.append(f"""
-        <article class="card {cls}">
+        <article class="card {cls}" data-id="{esc(aid)}">
           <header>
             <div>
               <h3>{esc(s.get('company', 'Unknown'))}</h3>
@@ -126,8 +127,10 @@ def build(state, generated):
             <span class="chip {chip}">{esc(badge)}</span>
           </header>
           <ul class="todo">{render_pending(pending)}</ul>
+          <p class="stub">&#10003; Marked submitted <button class="undo" data-id="{esc(aid)}">Undo</button></p>
           <div class="act">
             <a class="btn" href="{esc(s.get('url',''))}" target="_blank" rel="noopener">Open &amp; finish</a>
+            <button class="btn ghost mark" data-id="{esc(aid)}">Mark submitted</button>
             <span class="ats">{esc(s.get('ats', ''))}</span>
           </div>
         </article>""")
@@ -171,8 +174,9 @@ def build(state, generated):
       </div>""" if unconfirmed else ""
 
     watch_rows = "\n".join(
-        f"<tr><td>{esc(s.get('company'))}</td><td>{esc(s.get('role'))}</td>"
-        f"<td>{link(s.get('url'))}</td></tr>" for s in watch
+        f"<tr><td><strong>{esc(s.get('company'))}</strong><br><span class='muted'>{esc(s.get('role'))}</span></td>"
+        f"<td class='note-cell'>{esc(s.get('step',''))}</td>"
+        f"<td>{link(s.get('url'), 'View')}</td></tr>" for s in watch
     )
 
 
@@ -296,6 +300,16 @@ def build(state, generated):
   .btn[data-done] {{ background:var(--green); }}
   .btn:focus-visible {{ outline:3px solid var(--blue); outline-offset:3px; }}
   .ats {{ color:var(--ink-3); font-size:.78rem; margin-left:auto; }}
+  .card.marked {{ opacity:.55; }}
+  .card.marked .chip {{ background:var(--t-g); color:var(--green); }}
+  .card.marked ul.todo {{ display:none; }}
+  .stub {{ display:none; align-items:center; gap:.5rem; font-size:.9rem; color:var(--green);
+    font-weight:550; }}
+  .card.marked .stub {{ display:flex; }}
+  .card.marked .mark {{ display:none; }}
+  .undo {{ background:none; border:none; color:var(--ink-3); font:inherit; font-size:.82rem;
+    text-decoration:underline; cursor:pointer; padding:0; }}
+  .undo:hover {{ color:var(--ink); }}
 
   .contact {{ margin:0; font-size:.93rem; line-height:1.4; letter-spacing:-.015em; }}
   .contact strong {{ font-weight:600; }}
@@ -313,6 +327,7 @@ def build(state, generated):
   tr:last-child td {{ border-bottom:none; }}
   td.when {{ color:var(--ink-3); font-variant-numeric:tabular-nums; white-space:nowrap; }}
   a.go {{ color:var(--blue); text-decoration:none; font-weight:510; }}
+  td.note-cell {{ color:var(--ink-2); font-size:.88rem; max-width:32ch; }}
   a.go:hover {{ text-decoration:underline; }}
 
   .note {{ background:linear-gradient(var(--t-o),var(--t-o)),var(--card); border-radius:20px;
@@ -360,7 +375,7 @@ def build(state, generated):
   {f'''<div class="panel" id="p-watch" role="tabpanel">
     <p class="hint">Found, not started.</p>
     <div class="sheet"><div class="tablewrap"><table>
-      <thead><tr><th>Company</th><th>Role</th><th></th></tr></thead>
+      <thead><tr><th>Role</th><th>Why it is here</th><th></th></tr></thead>
       <tbody>{watch_rows}</tbody></table></div></div>
   </div>''' if watch else ""}
 </div>
@@ -376,6 +391,37 @@ def build(state, generated):
       if (p) p.classList.add('on');
     }});
   }});
+  var KEY = 'jobapp.marked';
+  function readMarks() {{
+    try {{ return JSON.parse(localStorage.getItem(KEY) || '[]'); }} catch (e) {{ return []; }}
+  }}
+  function writeMarks(m) {{
+    try {{ localStorage.setItem(KEY, JSON.stringify(m)); }} catch (e) {{}}
+  }}
+  function applyMarks() {{
+    var marks = readMarks();
+    document.querySelectorAll('.card[data-id]').forEach(function (c) {{
+      c.classList.toggle('marked', marks.indexOf(c.dataset.id) !== -1);
+    }});
+    var n = document.querySelectorAll('.card.marked').length;
+    var badge = document.querySelector('.tab[data-tab="act"] .n');
+    if (badge) badge.textContent = Math.max(0, {len(blocked)} - n);
+  }}
+  document.querySelectorAll('.mark').forEach(function (b) {{
+    b.addEventListener('click', function () {{
+      var m = readMarks();
+      if (m.indexOf(b.dataset.id) === -1) m.push(b.dataset.id);
+      writeMarks(m); applyMarks();
+    }});
+  }});
+  document.querySelectorAll('.undo').forEach(function (b) {{
+    b.addEventListener('click', function () {{
+      writeMarks(readMarks().filter(function (x) {{ return x !== b.dataset.id; }}));
+      applyMarks();
+    }});
+  }});
+  applyMarks();
+
   document.querySelectorAll('.copy').forEach(function (b) {{
     b.addEventListener('click', function () {{
       navigator.clipboard.writeText(b.dataset.msg).then(function () {{

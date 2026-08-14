@@ -1,6 +1,6 @@
 # job-application
 
-A [Claude Skill](https://docs.claude.com/en/docs/claude-code/skills) for applying to jobs: it reads your resume once, interviews you once, then fills applications across LinkedIn Easy Apply, Greenhouse, Lever, Ashby, Workday, iCIMS, Google Careers and company forms, surfaces the people in your network who could refer you, and hands you a dashboard of what still needs a human.
+A [Claude Skill](https://docs.claude.com/en/docs/claude-code/skills) that runs your job search as a **standing agent** rather than a one-off command: it reads your resume once, interviews you once, then fills applications across LinkedIn Easy Apply, Greenhouse, Lever, Ashby, Workday, iCIMS, Google Careers and company forms, surfaces the people in your network who could refer you, and hands you a dashboard of what still needs a human.
 
 Every rule in it exists because something went wrong without it during real use. Those failure modes are documented below, since they are the interesting part.
 
@@ -72,6 +72,20 @@ The skill is also honest about stopping. When new searches keep returning roles 
 **5. Dashboard.** Generates a self-contained status page showing what needs you, with a direct link to each blocked page.
 
 **6. Repeat.** The natural shape is a cycle, not a session. Sweep, dedupe against history, triage, apply where nothing is blocking, park what is blocked, republish the dashboard to the same URL, report in a few lines. Run it on demand or on a schedule.
+
+Steps 1 through 5 need no input, which is the whole return on the intake phase. A cycle that interrupts three times has usually skipped something intake should have captured.
+
+### It behaves as an agent, not a handler
+
+The objective is standing: get you into a better role while spending as little of your attention as possible. That changes defaults. It carries state across sessions in the store rather than the conversation, acts without checking in inside a cycle, and will tell you when the thing you asked for is not the thing that helps — if you ask for more roles when what you need is to send three referral messages, it says so.
+
+It also knows its limits and names them rather than working around them: credentials, CAPTCHAs, legal attestations, and anything it would have to invent.
+
+### Two kinds of memory
+
+The **application store** (`~/.job-application/`) holds operational state that churns: profile, answers, history, in-progress sessions.
+
+**Claude's own memory** holds durable facts that outlive the search: standing constraints, how you want the work done, that you are looking at all. The skill writes there deliberately and does not mirror application state into it, because a memory file full of stale statuses is worse than none — it reads as current.
 
 ### The confidence model
 
