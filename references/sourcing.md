@@ -52,6 +52,14 @@ Most run on a handful of ATS platforms with predictable URLs:
 
 Searching `site:job-boards.greenhouse.io <role keyword>` on Google finds roles across every Greenhouse customer at once. The same works for Lever and Ashby.
 
+## Plan the sweep once, then run it incrementally
+
+Ad-hoc searching produces ad-hoc coverage. Build the plan as a small matrix — query variants × geographies × channels — during the first sweep, and store it: `store.py meta-set --key sweepPlan --value '<json>'`. Every later cycle reads the plan instead of reinventing it, and the coverage report becomes checkable ("9 of 12 cells swept, 3 channels logged-out") instead of a vibe.
+
+Track state per cell. After sweeping a channel-query pair, record when: `meta-set --key "sweep.<channel>.<query-slug>" --value <timestamp>`. The next cycle filters that cell to postings newer than the stamp rather than re-triaging the same listings — this is what makes frequent cycles cheap enough to be worth running.
+
+Revise the plan when the search revises: a new target geography, a title variant that keeps producing hits, a channel that has returned nothing for weeks.
+
 ## How to run the sweep
 
 **1. Decide the query set.** Titles vary more than people expect. "AI Product Manager", "GenAI Product Manager", "Agentic AI PM", "LLM Product Manager", "ML Product Manager", "Applied AI PM" surface substantially different results. Search each; do not assume one covers the others.
@@ -62,7 +70,11 @@ Searching `site:job-boards.greenhouse.io <role keyword>` on Google finds roles a
 
 **4. Read each surviving posting's full body.** Titles misdescribe roles often enough that this is not optional. Check for relocation buried in the body, seniority below the title, contract-versus-permanent, and sponsorship exclusions.
 
-**5. Rank on fit, not recency.** Weight: how squarely the body matches the user's actual work; whether a referral path exists; applicant count and posting age; and whether the seniority band matches.
+**5. Rank on fit, not recency — with an explicit rubric.** Two stages, and the order matters:
+
+*Hard filters first*, from intake, and failing any one is a rejection however good the rest looks: location or setup the user won't accept, seniority band clearly off, compensation stated below their floor, sponsorship excluded where they need it, excluded company.
+
+*Then score what survives.* Roughly: how squarely the body matches the user's actual work (weight this most), whether a referral path exists, applicant-count-versus-age, seniority match, compensation signal. Record the score **and the reasons** in the watch entry — "kept: body is agent-platform PM work, 2nd-degree referral via [name], 40 applicants at 3 days" — so ranking is consistent across cycles and the user can see why something is on their board. A score with no reasons is not auditable and will drift between sessions.
 
 **6. Report what you searched**, including channels that returned nothing. "No ServiceNow AI PM roles in India this month" is a finding. Silence about a channel reads as coverage when it was absence.
 
@@ -75,6 +87,20 @@ Beyond title, company, location and link:
 - **The apply route.** Easy Apply, company ATS, email, or a form. This determines what will block, per `platforms.md`.
 - **Quota or reapply limits.**
 - **Compensation**, when shown. Glassdoor and Wellfound often show ranges that LinkedIn hides.
+
+## The company brief
+
+Finding the posting is half the research. Before a shortlisted role is applied to — and only for shortlisted roles — spend a few minutes on the company itself and write a five-fact brief into the watch entry:
+
+- Stage and funding (last round, when, from whom), or public performance
+- Recent trajectory: layoffs, pivots, leadership changes, big launches in the past year
+- What the product actually is, in one sentence the user could say in a screen
+- Who is likely hiring: the named recruiter or poster, the probable hiring manager
+- Anything that changes the decision: acquisition rumours, glassdoor red flags, return-to-office mandates
+
+The brief earns its cost three times over: it catches companies not worth an application slot, it makes screening answers ("why us?") specific instead of templated, and it gives the referral message something real to say. Cache it in the watch entry like the posting extraction — researched once, read by every later cycle.
+
+Keep it bounded. Five facts from a handful of pages, not a due-diligence report; the point is to inform an application, not to write one more thing the user has to read.
 
 ## Reaching what search cannot
 
@@ -116,6 +142,12 @@ What does reach them:
 - The recruiters and talent partners named on postings, who typically hold several unlisted reqs
 
 Draft these; sending needs the user's permission like any outbound message. And be clear-eyed about the trade: this is slower and less automatable than search, which is exactly why it is under-exploited.
+
+## Let outcomes steer the sweep
+
+The history log can hold post-submission events — `response`, `interview`, `offer`, `rejected` — logged as the user reports them. Ask about outcomes occasionally; a search that has been running for weeks accumulates them.
+
+They are the only ground truth sourcing gets. If every response so far came from company-ATS applications with referral messages, and none from LinkedIn Easy Apply, the next sweep should spend its budget accordingly — more direct-board coverage, more referral work, fewer Easy Apply slots. Channels are hypotheses; outcomes are the experiment. Report the shift when you make it, so the user knows why the mix changed.
 
 ## Diminishing returns
 

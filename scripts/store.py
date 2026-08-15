@@ -25,7 +25,9 @@ from pathlib import Path
 SCHEMA_VERSION = 1
 ANSWER_STATES = {"confirmed", "inferred", "missing", "sensitive"}
 SESSION_STATUSES = {"watch", "active", "review", "completed", "abandoned"}
-HISTORY_EVENTS = {"started", "reviewed", "completed", "abandoned"}
+# Pre-submission lifecycle, then post-submission outcomes reported by the user.
+HISTORY_EVENTS = {"started", "reviewed", "submitting", "completed", "abandoned",
+                  "response", "interview", "offer", "rejected"}
 
 
 class StoreError(Exception):
@@ -49,6 +51,7 @@ def paths(root):
         "answers": str(root / "answers.json"),
         "history": str(root / "applications.jsonl"),
         "sessions": str(root / "sessions"),
+        "meta": str(root / "meta.json"),
     }
 
 
@@ -165,24 +168,50 @@ def cmd_answer_put(args):
     return {"key": key, "state": state, "stored": entry.get("value") is not None}
 
 
-def cmd_answer_find(args):
-    answers = read_json(paths(root_dir(args.root))["answers"], {})
-    key = answer_key(args.question)
+def find_answer(answers, question):
+    key = answer_key(question)
     if key in answers:
         return answers[key]
     # Fall back to overlap scoring so slightly different phrasings still match.
+    # The bar is deliberately high: "product management" vs "project management"
+    # scores 0.71 — one word apart, and the wrong answer.
     target = set(key.split("-"))
-    best, best_score = None, 0.0
+    scored = []
     for k, v in answers.items():
         other = set(k.split("-"))
         if not other:
             continue
         score = len(target & other) / len(target | other)
-        if score > best_score:
-            best, best_score = v, score
-    if best and best_score >= 0.6:
-        return {"match": "fuzzy", "score": round(best_score, 2), **best}
-    return {"match": "none", "key": key}
+        if score > 0:
+            scored.append((score, k, v))
+    scored.sort(key=lambda t: (-t[0], t[1]))
+    if scored:
+        score, _, entry = scored[0]
+        # Sensitive answers never fuzzy-match: compensation landing in a
+        # near-miss field is the worst mis-fill this store can produce.
+        if score >= 0.75 and entry.get("state") != "sensitive":
+            return {"match": "fuzzy", "score": round(score, 2), **entry}
+    # Candidates carry the stored question, never the value; to use one,
+    # confirm it means the same thing, then look it up by its own question.
+    candidates = [
+        {"key": k, "question": v.get("question"), "state": v.get("state"), "score": round(s, 2)}
+        for s, k, v in scored[:3] if s >= 0.4
+    ]
+    return {"match": "none", "key": key, "candidates": candidates}
+
+
+def cmd_answer_find(args):
+    answers = read_json(paths(root_dir(args.root))["answers"], {})
+    return find_answer(answers, args.question)
+
+
+def cmd_answers_resolve(args):
+    """Resolve a whole form's questions in one call instead of one per field."""
+    questions = load_input(args.input)
+    if not isinstance(questions, list) or not all(isinstance(q, str) for q in questions):
+        raise StoreError("input must be a JSON list of question strings")
+    answers = read_json(paths(root_dir(args.root))["answers"], {})
+    return {q: find_answer(answers, q) for q in questions}
 
 
 def cmd_answer_list(args):
@@ -285,6 +314,68 @@ def cmd_session_delete(args):
     return {"deleted": None, "note": "no such session"}
 
 
+FUNNEL_ORDER = ["started", "reviewed", "submitting", "completed",
+                "response", "interview", "offer", "rejected"]
+
+
+def cmd_stats(args):
+    """The search as a funnel: what was started, what went out, what converted.
+
+    bySource only counts submitted applications, so it reads as conversion —
+    which channels produce responses — rather than raw activity.
+    """
+    events = cmd_history_list(argparse.Namespace(root=args.root, company=None))
+    apps = {}
+    for e in events:
+        key = e.get("applicationId") or f"{e.get('company')}|{e.get('role')}"
+        a = apps.setdefault(key, {"stages": set(), "source": None,
+                                  "company": e.get("company"), "role": e.get("role")})
+        a["stages"].add(e.get("event"))
+        if e.get("source") and not a["source"]:
+            a["source"] = e["source"]
+
+    funnel = {s: sum(1 for a in apps.values() if s in a["stages"]) for s in FUNNEL_ORDER}
+
+    by_source = {}
+    for a in apps.values():
+        if "completed" not in a["stages"]:
+            continue
+        src = a["source"] or "unknown"
+        row = by_source.setdefault(src, {"submitted": 0, "response": 0,
+                                         "interview": 0, "offer": 0, "rejected": 0})
+        row["submitted"] += 1
+        for s in ("response", "interview", "offer", "rejected"):
+            if s in a["stages"]:
+                row[s] += 1
+
+    needs_verification = sorted(
+        f"{a['company']} — {a['role']}" for a in apps.values()
+        if "submitting" in a["stages"] and not ({"completed", "abandoned"} & a["stages"])
+    )
+    return {"applications": len(apps), "funnel": funnel,
+            "bySource": by_source, "needsVerification": needs_verification}
+
+
+def cmd_meta_set(args):
+    """Small operational values (dashboard artifact URL, last sweep time).
+
+    Never answer or profile data — those have confidence machinery this bypasses.
+    """
+    path = paths(root_dir(args.root))["meta"]
+    meta = read_json(path, {})
+    meta[args.key] = args.value
+    meta["updatedAt"] = now()
+    write_private(path, meta)
+    return {args.key: args.value}
+
+
+def cmd_meta_get(args):
+    meta = read_json(paths(root_dir(args.root))["meta"], {})
+    if args.key:
+        return {args.key: meta.get(args.key)}
+    return meta
+
+
 def cmd_paths(args):
     return paths(root_dir(args.root))
 
@@ -296,14 +387,18 @@ COMMANDS = {
     "profile-replace": cmd_profile_replace,
     "answer-put": cmd_answer_put,
     "answer-find": cmd_answer_find,
+    "answers-resolve": cmd_answers_resolve,
     "answer-list": cmd_answer_list,
     "history-append": cmd_history_append,
     "history-list": cmd_history_list,
     "history-status": cmd_history_status,
+    "stats": cmd_stats,
     "session-save": cmd_session_save,
     "session-load": cmd_session_load,
     "session-list": cmd_session_list,
     "session-delete": cmd_session_delete,
+    "meta-set": cmd_meta_set,
+    "meta-get": cmd_meta_get,
 }
 
 
@@ -312,18 +407,21 @@ def build_parser():
     p.add_argument("--root", help="store directory (default ~/.job-application)")
     sub = p.add_subparsers(dest="command", required=True)
 
-    for name in ("init", "paths", "profile-get", "answer-list", "history-status"):
+    for name in ("init", "paths", "profile-get", "answer-list", "history-status", "stats"):
         sub.add_parser(name)
 
     sp = sub.add_parser("profile-replace"); sp.add_argument("--input", required=True)
     sp = sub.add_parser("answer-put"); sp.add_argument("--input", required=True); sp.add_argument("--remember-sensitive", action="store_true")
     sp = sub.add_parser("answer-find"); sp.add_argument("--question", required=True)
+    sp = sub.add_parser("answers-resolve"); sp.add_argument("--input", required=True)
     sp = sub.add_parser("history-append"); sp.add_argument("--input", required=True)
     sp = sub.add_parser("history-list"); sp.add_argument("--company")
     sp = sub.add_parser("session-save"); sp.add_argument("--id", required=True); sp.add_argument("--input", required=True)
     for name in ("session-load", "session-delete"):
         sp = sub.add_parser(name); sp.add_argument("--id", required=True)
     sub.add_parser("session-list")
+    sp = sub.add_parser("meta-set"); sp.add_argument("--key", required=True); sp.add_argument("--value", required=True)
+    sp = sub.add_parser("meta-get"); sp.add_argument("--key")
     return p
 
 

@@ -8,6 +8,7 @@ All persistent state lives under `~/.job-application/` and is reached only throu
   answers.json         reusable answers, each with a confidence state
   applications.jsonl   append-only event log
   sessions/            resumable in-progress applications
+  meta.json            small operational values: dashboard artifact URL, last sweep time
 ```
 
 ## Commands
@@ -18,12 +19,16 @@ python3 store.py profile-get
 python3 store.py profile-replace --input profile.json
 python3 store.py answer-put --input answer.json [--remember-sensitive]
 python3 store.py answer-find --question "..."
+python3 store.py answers-resolve --input questions.json   # whole form in one call
 python3 store.py history-append --input event.json
 python3 store.py history-list
+python3 store.py stats                                 # funnel, per-source conversion, needsVerification
 python3 store.py session-save --id <app-id> --input session.json
 python3 store.py session-load --id <app-id>
 python3 store.py session-list
 python3 store.py session-delete --id <app-id>
+python3 store.py meta-set --key artifactUrl --value <url>
+python3 store.py meta-get [--key artifactUrl]
 ```
 
 Pass JSON through a private temp file with `umask 077`, and delete it afterwards. Never echo stored values into logs or into the conversation unless the user asked to see them.
@@ -41,6 +46,16 @@ Every stored answer and every inferred profile field carries a state. This is th
 
 `inferred` is the state that matters most in practice. When a form needs a job's city and the resume only gives years, that value is inferred forever after — not because it is likely wrong, but because neither you nor the next session can tell it apart from a fact once the label is gone.
 
+## Matching answers to form questions
+
+`answer-find` returns an exact match when the normalised keys agree. Below that it fuzzy-matches, and the rules are deliberately conservative:
+
+- A fuzzy match needs at least 0.75 token overlap. "Years of experience in product management" versus "…in project management" scores 0.71 — one word apart, and the wrong answer. Below the bar the result is `match: none` plus up to three `candidates` carrying key, stored question, state and score — never values. To use a candidate, confirm it means the same thing, then fetch it exactly via `answer-find` with the candidate's own stored question.
+- **Sensitive answers never fuzzy-match.** A compensation figure landing in a near-miss field is the worst mis-fill this store can produce. Exact key or nothing.
+- A `match: fuzzy` result is a lead, not an authority: the score measures wording overlap, not meaning. Confirm it fits the question before filling.
+
+`answers-resolve` takes a JSON list of question strings and returns the full map in one call. Use it to build a form's fill plan upfront — which fields are covered, which need confirming, which block — instead of paying one round-trip per field.
+
 ## Sensitive answers: two separate permissions
 
 Using a sensitive answer now and storing it for later are different decisions. Ask them separately:
@@ -56,9 +71,15 @@ Only pass `--remember-sensitive` after a clear yes to the second. Permission to 
 {"event": "reviewed", "company": "...", "role": "...", "ats": "greenhouse", "applicationId": "..."}
 ```
 
-`reviewed` means the form reached final review. `completed` means the user confirmed submission, or you directly observed a confirmation state.
+Useful optional fields: `source` (the channel the role came from — `linkedin`, `greenhouse`, `wellfound` — put it on every `completed` event; it is what powers the per-channel conversion in `stats`) and `resumeVariant` (which resume the employer received, per `tailoring.md`).
 
-Keeping these apart is what prevents duplicate applications weeks later. When you cannot tell whether something submitted, log `reviewed` and say so — an honest gap is more useful than a confident wrong entry.
+`reviewed` means the form reached final review. `submitting` is written immediately **before** any potentially-final interaction — Submit, closing a completed modal, navigating away. `completed` means the user confirmed submission, or you directly observed a confirmation state.
+
+`submitting` is a write-ahead record. Its value is what it means when it is the *last* event for an application: a session died between the click and the confirmation check. On seeing that, verify on the platform whether the application went through, then log `completed` or `abandoned` — never treat the role as un-applied and fill the form again.
+
+Keeping these apart is what prevents duplicate applications weeks later. When you cannot tell whether something submitted, leave the `submitting` event as the latest and say so — an honest gap is more useful than a confident wrong entry.
+
+After submission, log outcomes as the user reports them: `response`, `interview`, `offer`, `rejected`. These stay on the Submitted tab with their status, and they are what lets sourcing shift budget toward the channels that actually convert (see the outcomes section in `sourcing.md`).
 
 ## Sessions
 

@@ -73,7 +73,14 @@ def esc(v):
     return html.escape(str(v if v is not None else ""))
 
 
+def safe_url(url):
+    """URLs come from scraped pages; only http(s) may become a clickable link."""
+    u = str(url or "").strip()
+    return u if u.startswith(("https://", "http://")) else ""
+
+
 def link(url, label="Open"):
+    url = safe_url(url)
     if not url:
         return '<span class="muted">no link</span>'
     return f'<a class="go" href="{esc(url)}" target="_blank" rel="noopener">{esc(label)} &nearr;</a>'
@@ -101,12 +108,21 @@ def build(state, generated):
 
     referrals = [s for s in sessions if s.get("referral")]
     watch = [s for s in sessions if s.get("status") == "watch"]
-    submitted = [e for e in history if e.get("event") == "completed"]
+    # An application whose latest event is a post-submission outcome is still
+    # submitted; it must not vanish from the board when an outcome is logged.
+    OUTCOMES = ("response", "interview", "offer", "rejected")
+    submitted = [e for e in history if e.get("event") in ("completed",) + OUTCOMES]
+    # "reviewed" never confirmed, plus "submitting" with no completion after it —
+    # the latter means a session died mid-submit and the platform must be checked.
     reviewed_only = {
-        (e.get("company"), e.get("role"))
+        (e.get("company"), e.get("role"), e.get("event") == "submitting")
         for e in history
-        if e.get("event") == "reviewed"
-    } - {(e.get("company"), e.get("role")) for e in submitted}
+        if e.get("event") in ("reviewed", "submitting")
+    }
+    reviewed_only = {
+        (c, r, interrupted) for c, r, interrupted in reviewed_only
+        if (c, r) not in {(e.get("company"), e.get("role")) for e in submitted}
+    }
 
     name = profile.get("firstName") or "there"
 
@@ -129,7 +145,7 @@ def build(state, generated):
           <ul class="todo">{render_pending(pending)}</ul>
           <p class="stub">&#10003; Marked submitted <button class="undo" data-id="{esc(aid)}">Undo</button></p>
           <div class="act">
-            <a class="btn" href="{esc(s.get('url',''))}" target="_blank" rel="noopener">Open &amp; finish</a>
+            <a class="btn" href="{esc(safe_url(s.get('url')))}" target="_blank" rel="noopener">Open &amp; finish</a>
             <button class="btn ghost mark" data-id="{esc(aid)}">Mark submitted</button>
             <span class="ats">{esc(s.get('ats', ''))}</span>
           </div>
@@ -153,23 +169,32 @@ def build(state, generated):
           {f'<div class="msg"><pre>{esc(msg)}</pre></div>' if msg else ''}
           <div class="act">
             {f'<button class="btn copy" data-msg="{esc(msg)}">Copy message</button>' if msg else ''}
-            <a class="btn ghost" href="{esc(r.get('profileUrl',''))}" target="_blank" rel="noopener">Message</a>
+            <a class="btn ghost" href="{esc(safe_url(r.get('profileUrl')))}" target="_blank" rel="noopener">Message</a>
           </div>
         </article>""")
 
+    outcome_chip = {"completed": ("", "submitted"), "response": ("warm", "response"),
+                    "interview": ("warm", "interview"), "offer": ("ready", "offer"),
+                    "rejected": ("", "rejected")}
+    def sub_row(e):
+        cls, label = outcome_chip.get(e.get("event"), ("", e.get("event")))
+        return (f"<tr><td>{esc(e.get('company'))}</td><td>{esc(e.get('role'))}</td>"
+                f"<td><span class='chip {cls}'>{esc(label)}</span></td>"
+                f"<td class='when'>{esc((e.get('at') or '')[:10])}</td></tr>")
+
     sub_rows = "\n".join(
-        f"<tr><td>{esc(e.get('company'))}</td><td>{esc(e.get('role'))}</td>"
-        f"<td class='when'>{esc((e.get('at') or '')[:10])}</td></tr>"
-        for e in sorted(submitted, key=lambda x: x.get("at", ""), reverse=True)
-    ) or "<tr><td colspan='3' class='muted'>Nothing submitted yet</td></tr>"
+        sub_row(e) for e in sorted(submitted, key=lambda x: x.get("at", ""), reverse=True)
+    ) or "<tr><td colspan='4' class='muted'>Nothing submitted yet</td></tr>"
 
     unconfirmed = "".join(
-        f"<li>{esc(c)} &mdash; {esc(r)}</li>" for c, r in sorted(reviewed_only) if c
+        f"<li>{esc(c)} &mdash; {esc(r)}"
+        f"{' <strong>(submission attempted, interrupted before confirmation)</strong>' if interrupted else ''}</li>"
+        for c, r, interrupted in sorted(reviewed_only, key=lambda t: (str(t[0]), str(t[1]))) if c
     )
     unconfirmed_block = f"""
       <div class="note">
         <h4>Not confirmed submitted</h4>
-        <p>These reached final review but no submission was observed. Worth checking before reapplying.</p>
+        <p>These reached final review or an interrupted submission, but no confirmation was observed. Check on the platform before reapplying.</p>
         <ul>{unconfirmed}</ul>
       </div>""" if unconfirmed else ""
 
@@ -368,7 +393,7 @@ def build(state, generated):
   <div class="panel" id="p-done" role="tabpanel">
     <p class="hint">Already out. Check here before applying again.</p>
     <div class="sheet"><div class="tablewrap"><table>
-      <thead><tr><th>Company</th><th>Role</th><th>When</th></tr></thead>
+      <thead><tr><th>Company</th><th>Role</th><th>Status</th><th>When</th></tr></thead>
       <tbody>{sub_rows}</tbody></table></div></div>
   </div>
 
@@ -455,7 +480,8 @@ def main():
         "written": str(out),
         "blocked": len([s for s in state["sessions"] if s.get("status") in ("active", "review")]),
         "referrals": len([s for s in state["sessions"] if s.get("referral")]),
-        "submitted": len([e for e in state["history"] if e.get("event") == "completed"]),
+        "submitted": len([e for e in state["history"]
+                          if e.get("event") in ("completed", "response", "interview", "offer", "rejected")]),
     }, indent=2))
     return 0
 
