@@ -42,7 +42,15 @@ Do not fall back to another browser and carry on quietly. You will get several s
 
 Once connected, confirm the user is signed in to LinkedIn in that profile before searching, since logged-out LinkedIn silently returns a reduced, public view.
 
-**Preflight on the practice form.** Before the first real application ever, open `tests/fixtures/practice-form.html` (from the skill directory, via `file://`) and complete it end to end. It reproduces the classic hazards — the modal X that submits, the autocomplete that rejects free text, the silently-validating salary field, the overlay-blocked radios, the hidden file input, an attestation box, and a planted instruction addressed to AI assistants. Passing it proves the browser toolchain and these rules work here, without spending a real application to find out. Rerun it after any change to this skill.
+**Preflight on the practice form.** Before the first real application ever, complete `tests/fixtures/practice-form.html` (from the skill directory) end to end.
+
+Serve it over localhost rather than opening it as a file. The Chrome integration force-prefixes `https://` onto URLs, so a `file://` path becomes `https://file:///...` and fails to load:
+
+```bash
+python3 -m http.server 8899 --bind 127.0.0.1 --directory <skill-dir>/tests/fixtures
+```
+
+Then open `http://127.0.0.1:8899/practice-form.html`, and stop the server when the run is done. It reproduces the classic hazards — the modal X that submits, the autocomplete that rejects free text, the silently-validating salary field, the overlay-blocked radios, the hidden file input, an attestation box, and a planted instruction addressed to AI assistants. Passing it proves the browser toolchain and these rules work here, without spending a real application to find out. Rerun it after any change to this skill.
 
 ## Phase 1: Intake (once)
 
@@ -51,6 +59,8 @@ Run this before the first application. It is what makes everything afterwards lo
 ### Resume
 
 Ask for the resume path. Read it, extract the fields listed in `references/storage.md`, and **show the user what you extracted before saving.** PDF extraction is lossy and an error here propagates into every future application.
+
+**Confirm the file is uploadable, here, before the first application needs it.** The Chrome uploader only accepts paths this session is allowed to read, so a resume sitting in `~/Downloads` is rejected at the moment a form asks for it — mid-application, which is the worst time to discover it. Check now: if the path is outside the readable set, ask the user to run `/add-dir` on its folder, and store the working path with `meta-set --key resumePath`.
 
 ### The intake interview
 
@@ -80,6 +90,15 @@ Resumes systematically omit things application forms demand. Ask these together,
 
 **Volume.** How many applications per day feels right. Default to a modest cap (around ten) rather than unlimited — past a point another application converts worse than a referral message on one already sent, and the cap is also what keeps cycles from behaving like a scraper.
 
+**The search brief — what they are actually looking for.** Every other question here describes the *candidate*; without this one, nothing describes the *job*, and the first sweep is built on inference from their resume. Ask together with the rest:
+
+- **Target titles and seniority band.** Senior PM, Lead, Group PM, Director? A resume shows the last title, not the next one, and the two often differ deliberately.
+- **Compensation floor** — the number below which a role is not worth an application. Distinct from expected CTC: that is what they will ask for, this is what filters the sweep.
+- **Company stage and type.** Seed startup, growth-stage, big tech, services and consulting firms. Someone leaving an AI-native product role usually does not want enterprise-services AI, and the titles are indistinguishable.
+- **Domains to prefer or avoid**, beyond the exclusion list — that list names companies, this names categories.
+
+Store these as answers and reread them at the start of every sweep. Without the brief, a sweep cannot be wrong, only arbitrary.
+
 **Voice and stories.** Two or three samples of their own professional writing, and three to five real stories behind the resume bullets — `references/tailoring.md` covers what to collect and why. This is what keeps screening answers and referral messages sounding like them instead of like a template, and it is far cheaper to gather once here than to interrupt for during every application.
 
 **Submission preference** — always stop before Submit, or submit when everything is verified. Default to stopping. See the warning under Submitting about why "I will not click Submit" is not by itself a guarantee.
@@ -100,13 +119,25 @@ Dedupe by company and normalised title, preferring the company's own ATS link ov
 
 **Gate on metadata before opening bodies.** Title, location line, posting age, applicant count, and the history and exclusion checks are enough to reject most of a sweep — wrong country, wrong seniority band, already applied, excluded company. Reading every body in a hundred-result sweep spends most of the budget on roles that were never candidates. The gate only rejects; it never accepts.
 
+**Check the posting is still alive before spending a read on it.** A dead posting costs the same body read as a live one and can never convert. Three forms of dead, all seen in practice:
+
+- **An expired deadline printed in the posting itself.** An Ashby role listed "Deadline to Apply: May 29" and was still fully rendered, still linked from search, three months later.
+- **A search-index result that no longer exists.** Greenhouse and Lever job IDs from a web search frequently redirect to the board root; the role is gone and the redirect is the only signal.
+- **A posting whose apply path is closed** while the description stays up.
+
+Treat a redirect to a board root as a dead posting, not as a page to parse.
+
+**Distinguish a blocked platform from a degraded one.** Pushback is not binary. LinkedIn in particular has a middle state where job metadata renders normally — title, company, location, applicant count — while description bodies are absent from the DOM entirely. Read as-is, that state looks like a set of postings that have no description, and it quietly poisons a sweep: every role fails the body read, and the honest-looking conclusion is that nothing matches.
+
+Detect it by checking whether the description element exists at all, rather than whether it has content. When it is missing across several postings, say so, and switch to the company's own ATS board for the body — which is the better source anyway.
+
 Then **read each surviving posting's full body before shortlisting** — mandatory for anything you might apply to. Titles are marketing:
 
 - "Product Manager, User Voice AI and Agentic Experiences" was a feedback-ingestion platform role: APIs, serialization, pipelines. No AI product ownership.
 - A posting listed "Mumbai, Hybrid" required full relocation to Bangkok, stated far down the body.
 - An "$80/hr Product Manager (Tech)" posting was data-labelling contract work.
 
-For each shortlisted role capture: whether the body matches the title, seniority band, real location and relocation requirement, sponsorship stance, and **the referral signals** described below. **Extract once, keep it**: write this structured summary into the role's watch entry, so no later cycle re-reads the posting. A body should be read exactly once per role, ever.
+For each shortlisted role capture: whether the body matches the title, seniority band, real location and relocation requirement, sponsorship stance, and **the referral signals** described below. **Extract once, keep it**: write this structured summary into the role's watch entry — a session with `status: "watch"`, per `references/storage.md` — so no later cycle re-reads the posting. A body should be read exactly once per role, ever.
 
 **Application quotas.** Some employers cap applications — Google Careers allows three per thirty days; Workday tenants often block reapplying for six or twelve months. When you see a quota, raise it before spending a slot. Burning two of three slots on mismatched roles is an invisible loss: nothing errors, there are simply fewer chances left.
 
@@ -127,6 +158,8 @@ Identify the ATS and read `references/platforms.md` for its known blockers, so y
 **Resolve the whole form before touching it.** Read the form once, list its questions, and resolve them in a single call — `store.py answers-resolve --input questions.json` — rather than one lookup per field. That produces the fill plan upfront: which fields have confirmed answers, which are inferred and need confirming, which are missing and block the application. Ask the user for everything missing in one message, not field by field. Treat a `fuzzy` match as a candidate you must confirm means the same thing, never as an authority — the score measures wording overlap, not meaning.
 
 Work in order, and **verify every few fields rather than at the end.** Long forms re-render as you fill: dropdowns shift, clicks land on neighbouring options, scroll position moves a target between reading its coordinate and clicking. Silent mis-fills are the normal failure mode.
+
+**A batched call stops at its first failure, and the rest never run.** Batching browser actions is worth doing, but a failed item silently drops every action after it — and a form half-filled that way looks filled, because the fields that did land are the visible ones. In one run a resume upload failed mid-batch and the location, salary and referral fields after it were never set; the form looked complete in a screenshot. Read back after every batch, not just every few fields, and never assume a batch ran to completion because its earlier items did.
 
 **Verify by reading back, not by looking.** After each small group of fields, read the fields' actual values from the page and compare them string-to-string against the fill plan. Exact comparison catches the drift failures — the neighbouring dropdown option, the truncated paste — that eyeballing a screenshot misses, and a targeted read costs a fraction of one. Screenshots are for genuine ambiguity, widgets that won't report their state, and the final pre-submit check — not routine verification.
 

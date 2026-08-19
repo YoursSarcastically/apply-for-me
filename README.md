@@ -67,6 +67,9 @@ Every rule came from something going wrong in real use.
 | A careers profile still held a **two-year-old resume** under an old title | Audits prefilled ATS data first |
 | A form asked about association with an **audit firm**; the candidate had worked there years earlier | Cross-checks declarations against work history, then hands them back |
 | Searching one job board suggested a role type barely existed | Sweeps many channels, and reports which returned nothing |
+| A posting sat fully rendered and still linked from search **three months after its deadline had passed** | Checks a posting is still live before spending a body read on it |
+| A job board rendered titles, locations and applicant counts normally while **every description body was missing** — which reads as "no role matches" | Distinguishes a blocked platform from a degraded one, and falls back to the company's own ATS |
+| A batched browser call failed midway; every later action silently never ran, and the half-filled form looked complete | Reads values back after every batch, not every few fields |
 | "Years in **product** management" nearly received the answer for "years in **project** management" | Conservative answer matching, with regression tests |
 
 ---
