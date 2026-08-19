@@ -19,6 +19,26 @@ def build(sessions=(), history=(), profile=None):
 
 
 class DashboardTest(unittest.TestCase):
+    def test_watch_status_renders_in_watching_tab(self):
+        """The string 'watch' is the documented contract between SKILL.md,
+        references/storage.md and dashboard.py. Roles sourced but not yet applied
+        to are stored as sessions with this status; anything else strands them
+        where the dashboard cannot show them."""
+        html = build(sessions=[{"company": "Acme", "role": "Senior AI PM",
+                                "status": "watch", "url": "https://example.com/j/1",
+                                "pendingFields": []}])
+        self.assertIn("Watching", html)
+        self.assertIn("Acme", html)
+        self.assertIn("https://example.com/j/1", html)
+
+    def test_watch_entries_are_not_counted_as_applications(self):
+        """A watch entry is a sourced role, not a submission. Counting one as an
+        application would overstate the funnel and hide that nothing went out."""
+        html = build(sessions=[{"company": "Acme", "role": "Senior AI PM",
+                                "status": "watch", "pendingFields": []}])
+        self.assertIn('Needs you<span class="n">0</span>', html)
+        self.assertIn('Watching<span class="n">1</span>', html)
+
     def test_safe_url_blocks_non_http_schemes(self):
         self.assertEqual(dashboard.safe_url("javascript:alert(1)"), "")
         self.assertEqual(dashboard.safe_url("data:text/html,x"), "")

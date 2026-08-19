@@ -33,6 +33,30 @@ python3 store.py meta-get [--key artifactUrl]
 
 Pass JSON through a private temp file with `umask 077`, and delete it afterwards. Never echo stored values into logs or into the conversation unless the user asked to see them.
 
+## Session status, and where watch entries live
+
+A session is not only an in-progress form. `dashboard.py` groups sessions by their `status` field, and one value is load-bearing:
+
+| `status` | Meaning | Dashboard |
+|---|---|---|
+| `watch` | A role that has been sourced but not applied to. This is the **watch entry** referred to throughout `SKILL.md` — the place the one-time posting extraction is written so no later cycle re-reads the body. | Watching tab |
+| anything else | An application in progress | Needs-you / in-progress |
+
+Write one with `session-save`, using a stable slug derived from company and role so a later sweep updates the entry instead of duplicating it:
+
+```bash
+python3 store.py session-save --id acme-senior-ai-pm --input watch.json
+```
+
+```json
+{"status": "watch", "company": "Acme", "role": "Senior AI PM",
+ "url": "https://job-boards.greenhouse.io/acme/jobs/123", "source": "greenhouse",
+ "location": "Bengaluru (hybrid)", "bodyRead": true,
+ "note": "Body matches title. Owns eval pipeline. No sponsorship offered."}
+```
+
+There is no `watch-*` command and no separate watchlist file. Putting sourced roles anywhere else — `meta.json` in particular — stores them where the dashboard cannot find them, which is the failure this document opens by warning about.
+
 ## Confidence states
 
 Every stored answer and every inferred profile field carries a state. This is the mechanism that stops a guess from hardening into a fact across applications.
